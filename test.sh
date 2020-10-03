@@ -4,9 +4,9 @@ assert() {
   expected="$1"
   input="$2"
 
-  ./qcc "$input" > tmp.s
-  cc -o tmp tmp.s
-  ./tmp
+  ./qcc "$input" > tmp/test.s
+  cc -o tmp/test tmp/test.s
+  ./tmp/test
   actual="$?"
 
   if [ "$actual" = "$expected" ]; then
@@ -16,6 +16,8 @@ assert() {
     exit 1
   fi
 }
+
+mkdir -p tmp
 
 assert 0 0
 assert 42 42
