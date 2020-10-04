@@ -137,6 +137,17 @@ func consumeNum(tokens []Token, offset *int) (int, bool) {
     return 0, false
 }
 
+func newNode(kind NodeKind, lhs *Node, rhs *Node) *Node {
+    node := Node { kind, lhs, rhs, 0 }
+    return &node
+}
+
+func newNodeNum(val int) *Node {
+    p := newNode(NodeNum, nil, nil)
+    (*p).val = val
+    return p
+}
+
 func printErrorAt(input string, pos int, err string) {
     fmt.Fprintf(os.Stderr, "%s\n", input)
     format := fmt.Sprintf("%%%ds", pos)
