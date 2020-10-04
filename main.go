@@ -23,6 +23,23 @@ type Token struct {
     pos int
 }
 
+type NodeKind int
+
+const (
+    NodeAdd NodeKind = iota
+    NodeSub
+    NodeMul
+    NodeDiv
+    NodeNum
+)
+
+type Node struct {
+    kind NodeKind
+    lhs *Node
+    rhs *Node
+    val int
+}
+
 func tokenize(input []rune) ([]Token, error) {
     l := len(input)
     off := 0
