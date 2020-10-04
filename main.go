@@ -20,6 +20,7 @@ type Token struct {
     kind TokenKind
     val int
     str string
+    pos int
 }
 
 func tokenize(input []rune) ([]Token, error) {
@@ -41,6 +42,7 @@ func tokenize(input []rune) ([]Token, error) {
             token := Token {
                 kind: TokenReserved,
                 str: string([]rune{input[off]}),
+                pos: off,
             }
             tokens = append(tokens, token)
             off++
@@ -86,6 +88,7 @@ func parseNum(input []rune, offset int) (Token, int, error) {
     token := Token {
         kind: TokenNum,
         str: str,
+        pos: a,
     }
     if result, err := strconv.Atoi(str); err != nil {
         return Token{}, offset, errors.New("parseNum失敗")
@@ -106,12 +109,22 @@ func consumeOp(tokens []Token, offset *int, op string) bool {
 }
 
 func consumeNum(tokens []Token, offset *int) (int, bool) {
+    if *offset >= len(tokens) {
+        return 0, false
+    }
     token := tokens[*offset]
     if token.kind == TokenNum {
         (*offset)++
         return token.val, true
     }
     return 0, false
+}
+
+func printErrorAt(input string, pos int, err string) {
+    fmt.Fprintf(os.Stderr, "%s\n", input)
+    format := fmt.Sprintf("%%%ds", pos)
+    fmt.Fprintf(os.Stderr, format, "")
+    fmt.Fprintf(os.Stderr, "^ %s\n", err)
 }
 
 func main() {
@@ -140,7 +153,7 @@ func main() {
     if a0, consumed := consumeNum(tokens, &offset); consumed  {
         fmt.Printf("  mov rax, %d\n", a0)
     } else {
-        fmt.Fprintf(os.Stderr, "最初のトークンが数ではありません。")
+        printErrorAt(string(input), 0, "最初のトークンが数ではありません。")
         os.Exit(1)
     }
 
@@ -153,18 +166,30 @@ func main() {
             if a, consumed := consumeNum(tokens, &offset); consumed {
                 fmt.Printf("  add rax, %d\n", a)
             } else {
-                fmt.Fprintf(os.Stderr, "+の後のトークンが数ではありません。 str: %s", tokens[offset].str)
+                pos := 0
+                if offset < tl {
+                    pos = tokens[offset].pos
+                } else {
+                    pos = tl + 1
+                }
+                printErrorAt(string(input), pos, "+の後のトークンが数ではありません。")
                 os.Exit(1)
             }
         } else if consumeOp(tokens, &offset, "-") {
             if a, consumed := consumeNum(tokens, &offset); consumed {
                 fmt.Printf("  sub rax, %d\n", a)
             } else {
-                fmt.Fprintf(os.Stderr, "-の後のトークンが数ではありません。 str: %s", tokens[offset].str)
+                pos := 0
+                if offset < tl {
+                    pos = tokens[offset].pos
+                } else {
+                    pos = tl + 1
+                }
+                printErrorAt(string(input), pos, "-の後のトークンが数ではありません。")
                 os.Exit(1)
             }
         } else {
-            fmt.Fprintf(os.Stderr, "演算子があるべきところで別トークン str: %s", tokens[offset].str)
+            printErrorAt(string(input), tokens[offset].pos, "演算子があるべきところで別トークン")
             os.Exit(1)
         }
     }
