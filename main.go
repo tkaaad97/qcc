@@ -165,6 +165,9 @@ func consumeRightBracket(tokens []Token, offset *int) bool {
 }
 
 func consumeOp(tokens []Token, offset *int, op string) bool {
+    if *offset >= len(tokens) {
+        return false
+    }
     token := tokens[*offset]
     if token.kind == TokenReserved && token.str == op {
         (*offset)++
@@ -263,7 +266,7 @@ func expr(tokens []Token, offset *int) (*Node, error) {
             if rhs, err := mul(tokens, offset); err != nil {
                 return nil, err
             } else {
-                node = newNode(NodeDiv, node, rhs)
+                node = newNode(NodeSub, node, rhs)
             }
         } else {
             break
@@ -337,6 +340,33 @@ func eval(node *Node) (int, error) {
     return 0, errors.New("不明なノードカインド")
 }
 
+func gen(node *Node) {
+    if ((*node).kind == NodeNum) {
+        fmt.Printf("  push %d\n", (*node).val)
+        return
+    }
+
+    gen((*node).lhs)
+    gen((*node).rhs)
+
+    fmt.Printf("  pop rdi\n")
+    fmt.Printf("  pop rax\n")
+
+    switch((*node).kind) {
+    case NodeAdd:
+        fmt.Printf("  add rax, rdi\n")
+    case NodeSub:
+        fmt.Printf("  sub rax, rdi\n")
+    case NodeMul:
+        fmt.Printf("  imul rax, rdi\n")
+    case NodeDiv:
+        fmt.Printf("  cqo\n")
+        fmt.Printf("  idiv rax\n")
+    }
+
+    fmt.Printf("  push rax\n")
+}
+
 func printErrorAt(input string, pos int, err string) {
     fmt.Fprintf(os.Stderr, "%s\n", input)
     format := fmt.Sprintf("%%%ds", pos)
@@ -360,56 +390,18 @@ func main() {
         tokens = tokenized
     }
 
-    fmt.Printf(".intel_syntax noprefix\n")
-    fmt.Printf(".globl main\n")
-    fmt.Printf("main:\n")
-
-    // 最初の数
-    tl := len(tokens)
+    // exprパース
     offset := 0
-    if a0, consumed := consumeNum(tokens, &offset); consumed  {
-        fmt.Printf("  mov rax, %d\n", a0)
-    } else {
-        printErrorAt(string(input), 0, "最初のトークンが数ではありません。")
+    if node, err := expr(tokens, &offset); err != nil {
+        fmt.Fprintf(os.Stderr, err.Error())
         os.Exit(1)
+    } else {
+        // アセンブラ生成
+        fmt.Printf(".intel_syntax noprefix\n")
+        fmt.Printf(".globl main\n")
+        fmt.Printf("main:\n")
+        gen(node);
+        fmt.Printf("  pop rax\n")
+        fmt.Printf("  ret\n")
     }
-
-    for {
-        if (offset >= tl) {
-            break
-        }
-
-        if consumeOp(tokens, &offset, "+") {
-            if a, consumed := consumeNum(tokens, &offset); consumed {
-                fmt.Printf("  add rax, %d\n", a)
-            } else {
-                pos := 0
-                if offset < tl {
-                    pos = tokens[offset].pos
-                } else {
-                    pos = tl + 1
-                }
-                printErrorAt(string(input), pos, "+の後のトークンが数ではありません。")
-                os.Exit(1)
-            }
-        } else if consumeOp(tokens, &offset, "-") {
-            if a, consumed := consumeNum(tokens, &offset); consumed {
-                fmt.Printf("  sub rax, %d\n", a)
-            } else {
-                pos := 0
-                if offset < tl {
-                    pos = tokens[offset].pos
-                } else {
-                    pos = tl + 1
-                }
-                printErrorAt(string(input), pos, "-の後のトークンが数ではありません。")
-                os.Exit(1)
-            }
-        } else {
-            printErrorAt(string(input), tokens[offset].pos, "演算子があるべきところで別トークン")
-            os.Exit(1)
-        }
-    }
-
-    fmt.Printf("  ret\n")
 }
