@@ -272,6 +272,71 @@ func expr(tokens []Token, offset *int) (*Node, error) {
     return node, nil
 }
 
+func eval(node *Node) (int, error) {
+    if node == nil {
+        return 0, errors.New("evalにnilが渡されました。")
+    }
+
+    switch(node.kind) {
+    case NodeAdd:
+        var l, r int
+        if lhs, err := eval((*node).lhs); err != nil {
+            return 0, err
+        } else {
+            l = lhs
+        }
+        if rhs, err := eval((*node).rhs); err != nil {
+            return 0, err
+        } else {
+            r = rhs
+        }
+        return l + r, nil
+    case NodeSub:
+        var l, r int
+        if lhs, err := eval((*node).lhs); err != nil {
+            return 0, err
+        } else {
+            l = lhs
+        }
+        if rhs, err := eval((*node).rhs); err != nil {
+            return 0, err
+        } else {
+            r = rhs
+        }
+        return l - r, nil
+    case NodeMul:
+        var l, r int
+        if lhs, err := eval((*node).lhs); err != nil {
+            return 0, err
+        } else {
+            l = lhs
+        }
+        if rhs, err := eval((*node).rhs); err != nil {
+            return 0, err
+        } else {
+            r = rhs
+        }
+        return l * r, nil
+    case NodeDiv:
+        var l, r int
+        if lhs, err := eval((*node).lhs); err != nil {
+            return 0, err
+        } else {
+            l = lhs
+        }
+        if rhs, err := eval((*node).rhs); err != nil {
+            return 0, err
+        } else {
+            r = rhs
+        }
+        return l / r, nil
+    case NodeNum:
+        return node.val, nil
+    }
+
+    return 0, errors.New("不明なノードカインド")
+}
+
 func printErrorAt(input string, pos int, err string) {
     fmt.Fprintf(os.Stderr, "%s\n", input)
     format := fmt.Sprintf("%%%ds", pos)
