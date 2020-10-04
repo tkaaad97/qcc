@@ -1,54 +1,117 @@
 package main
 
-import "errors"
-import "fmt"
-import "os"
-import "strconv"
+import (
+    "errors"
+    "fmt"
+    "os"
+    "strconv"
+    "unicode"
+)
 
-func isDigit(a int) bool  {
-    return '0' <= a && a <= '9'
+type TokenKind int
+
+const (
+    TokenReserved TokenKind = iota
+    TokenNum
+    TokenEof
+)
+
+type Token struct {
+    kind TokenKind
+    val int
+    str string
 }
 
-func parseNum(input string, offset int) (result int, remaining int, err error) {
+func tokenize(input []rune) ([]Token, error) {
     l := len(input)
-    a := offset
+    off := 0
+    tokens := make([]Token, 0, 100)
+
     for {
-        if isDigit(int(input[a])) {
-            a++
-        } else {
+        if (off >= l) {
             break
         }
 
-        if a == l {
+        if (unicode.IsSpace(input[off])) {
+            off++
+            continue
+        }
+
+        if (input[off] == '+' || input[off] == '-') {
+            token := Token {
+                kind: TokenReserved,
+                str: string([]rune{input[off]}),
+            }
+            tokens = append(tokens, token)
+            off++
+            continue
+        }
+
+        if unicode.IsDigit(input[off]) {
+            if token, remaining, err := parseNum(input, off); err != nil {
+                return tokens, errors.New("tokenizeに失敗しました。")
+            } else {
+                tokens = append(tokens, token)
+                off = remaining
+            }
+            continue
+        }
+
+        return tokens, errors.New("tokenizeに失敗しました。")
+    }
+
+    return tokens, nil
+}
+
+func parseNum(input []rune, offset int) (Token, int, error) {
+    l := len(input)
+    a := offset
+    for {
+        if a >= l {
+            break
+        }
+
+        if unicode.IsDigit(input[a]) {
+            a++
+        } else {
             break
         }
     }
 
     if a == offset {
-        result = 0
-        remaining = offset
-        err = errors.New("parseNum失敗")
-        return
+        return Token{}, offset, errors.New("parseNum失敗")
     }
 
-    result, err = strconv.Atoi(input[offset:a])
-    if err != nil {
-        result = 0
-        remaining = offset
-        return
+    str := string(input[offset:a])
+    token := Token {
+        kind: TokenNum,
+        str: str,
+    }
+    if result, err := strconv.Atoi(str); err != nil {
+        return Token{}, offset, errors.New("parseNum失敗")
+    } else {
+        token.val = result
     }
 
-    remaining = a
-    return
+    return token, a, nil
 }
 
-func parseOp(input string, offset int) (result int, remaining int, err error) {
-    if input[offset] == '+' || input[offset] == '-' {
-        result = int(input[offset])
-        remaining = offset + 1
-        return
+func consumeOp(tokens []Token, offset *int, op string) bool {
+    token := tokens[*offset]
+    if token.kind == TokenReserved && token.str == op {
+        (*offset)++
+        return true
     }
-    return 0, offset, errors.New("parseOp failed")
+    return false
+}
+
+func consumeNum(tokens []Token, offset *int) (int, bool) {
+    token := tokens[*offset]
+    if token.kind == TokenNum {
+        (*offset)++
+        return token.val, true
+    }
+    return 0, false
 }
 
 func main() {
@@ -57,46 +120,52 @@ func main() {
         os.Exit(1)
     }
 
-    input := os.Args[1]
-    l := len(input)
+    // トークナイズする
+    input := []rune(os.Args[1])
+    var tokens []Token
+    if tokenized, err := tokenize(input); err != nil {
+        fmt.Fprintf(os.Stderr, err.Error())
+        os.Exit(1)
+    } else {
+        tokens = tokenized
+    }
 
     fmt.Printf(".intel_syntax noprefix\n")
     fmt.Printf(".globl main\n")
     fmt.Printf("main:\n")
 
     // 最初の数
-    a0, off, err := parseNum(input, 0)
-    if err != nil {
-        fmt.Fprintf(os.Stderr, err.Error())
+    tl := len(tokens)
+    offset := 0
+    if a0, consumed := consumeNum(tokens, &offset); consumed  {
+        fmt.Printf("  mov rax, %d\n", a0)
+    } else {
+        fmt.Fprintf(os.Stderr, "最初のトークンが数ではありません。")
         os.Exit(1)
     }
-    fmt.Printf("  mov rax, %d\n", a0)
 
     for {
-        if (off != l) {
-            // +か-
-            op, off1, err1 := parseOp(input, off)
-            if err1 != nil {
-                fmt.Fprintf(os.Stderr, "エラー: %s", err1.Error())
-                os.Exit(1)
-            }
-            off = off1
+        if (offset >= tl) {
+            break
+        }
 
-            // 次の数
-            a, off2, err2 := parseNum(input, off)
-            if err2 != nil {
-                fmt.Fprintf(os.Stderr, "エラー: %s", err2.Error())
-                os.Exit(1)
-            }
-            off = off2
-
-            if op == '+' {
+        if consumeOp(tokens, &offset, "+") {
+            if a, consumed := consumeNum(tokens, &offset); consumed {
                 fmt.Printf("  add rax, %d\n", a)
             } else {
+                fmt.Fprintf(os.Stderr, "+の後のトークンが数ではありません。 str: %s", tokens[offset].str)
+                os.Exit(1)
+            }
+        } else if consumeOp(tokens, &offset, "-") {
+            if a, consumed := consumeNum(tokens, &offset); consumed {
                 fmt.Printf("  sub rax, %d\n", a)
+            } else {
+                fmt.Fprintf(os.Stderr, "-の後のトークンが数ではありません。 str: %s", tokens[offset].str)
+                os.Exit(1)
             }
         } else {
-            break
+            fmt.Fprintf(os.Stderr, "演算子があるべきところで別トークン str: %s", tokens[offset].str)
+            os.Exit(1)
         }
     }
 
