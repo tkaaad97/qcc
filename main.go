@@ -12,6 +12,8 @@ type TokenKind int
 
 const (
     TokenReserved TokenKind = iota
+    TokenLeftBracket
+    TokenRightBracket
     TokenNum
     TokenEof
 )
@@ -55,10 +57,32 @@ func tokenize(input []rune) ([]Token, error) {
             continue
         }
 
-        if (input[off] == '+' || input[off] == '-') {
+        if (input[off] == '+' || input[off] == '-' || input[off] == '*' || input[off] == '/') {
             token := Token {
                 kind: TokenReserved,
                 str: string([]rune{input[off]}),
+                pos: off,
+            }
+            tokens = append(tokens, token)
+            off++
+            continue
+        }
+
+        if input[off] == '(' {
+            token := Token {
+                kind: TokenLeftBracket,
+                str: "(",
+                pos: off,
+            }
+            tokens = append(tokens, token)
+            off++
+            continue
+        }
+
+        if input[off] == ')' {
+            token := Token {
+                kind: TokenRightBracket,
+                str: ")",
                 pos: off,
             }
             tokens = append(tokens, token)
@@ -116,6 +140,30 @@ func parseNum(input []rune, offset int) (Token, int, error) {
     return token, a, nil
 }
 
+func consumeLeftBracket(tokens []Token, offset *int) bool {
+    if *offset >= len(tokens) {
+        return false
+    }
+    token := tokens[*offset]
+    if token.kind == TokenLeftBracket {
+        (*offset)++
+        return true
+    }
+    return false
+}
+
+func consumeRightBracket(tokens []Token, offset *int) bool {
+    if *offset >= len(tokens) {
+        return false
+    }
+    token := tokens[*offset]
+    if token.kind == TokenRightBracket {
+        (*offset)++
+        return true
+    }
+    return false
+}
+
 func consumeOp(tokens []Token, offset *int, op string) bool {
     token := tokens[*offset]
     if token.kind == TokenReserved && token.str == op {
@@ -146,6 +194,82 @@ func newNodeNum(val int) *Node {
     p := newNode(NodeNum, nil, nil)
     (*p).val = val
     return p
+}
+
+func primary(tokens []Token, offset *int) (*Node, error) {
+    if v, consumed := consumeNum(tokens, offset); consumed {
+        return newNodeNum(v), nil
+    }
+
+    if consumeLeftBracket(tokens, offset) {
+        if n, err := expr(tokens, offset); err != nil {
+            return nil, err
+        } else {
+            if consumeRightBracket(tokens, offset) {
+                return n, nil
+            } else {
+                return nil, errors.New("右括弧が不足しています")
+            }
+        }
+    }
+
+    return nil, errors.New("primaryのパースに失敗しました。")
+}
+
+func mul(tokens []Token, offset *int) (*Node, error) {
+    var node *Node
+    if lhs, err := primary(tokens, offset); err != nil {
+        return nil, err
+    } else {
+        node = lhs
+    }
+
+    for {
+        if consumeOp(tokens, offset, "*") {
+            if rhs, err := primary(tokens, offset); err != nil {
+                return nil, err
+            } else {
+                node = newNode(NodeMul, node, rhs)
+            }
+        } else if consumeOp(tokens, offset, "/") {
+            if rhs, err := primary(tokens, offset); err != nil {
+                return nil, err
+            } else {
+                node = newNode(NodeDiv, node, rhs)
+            }
+        } else {
+            break
+        }
+    }
+    return node, nil
+}
+
+func expr(tokens []Token, offset *int) (*Node, error) {
+    var node *Node
+    if lhs, err := mul(tokens, offset); err != nil {
+        return nil, err
+    } else {
+        node = lhs
+    }
+
+    for {
+        if consumeOp(tokens, offset, "+") {
+            if rhs, err := mul(tokens, offset); err != nil {
+                return nil, err
+            } else {
+                node = newNode(NodeAdd, node, rhs)
+            }
+        } else if consumeOp(tokens, offset, "-") {
+            if rhs, err := mul(tokens, offset); err != nil {
+                return nil, err
+            } else {
+                node = newNode(NodeDiv, node, rhs)
+            }
+        } else {
+            break
+        }
+    }
+    return node, nil
 }
 
 func printErrorAt(input string, pos int, err string) {
