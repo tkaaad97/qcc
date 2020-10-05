@@ -73,7 +73,7 @@ func tokenize(input []rune) ([]Token, error) {
                 pos: off,
             }
             tokens = append(tokens, token)
-            off++
+            off += 2
             continue
         }
 
@@ -87,7 +87,7 @@ func tokenize(input []rune) ([]Token, error) {
                 pos: off,
             }
             tokens = append(tokens, token)
-            off++
+            off += 2
             continue
         }
 
@@ -102,7 +102,7 @@ func tokenize(input []rune) ([]Token, error) {
                 pos: off,
             }
             tokens = append(tokens, token)
-            off++
+            off += len(s)
             continue
         }
 
@@ -117,7 +117,7 @@ func tokenize(input []rune) ([]Token, error) {
                 pos: off,
             }
             tokens = append(tokens, token)
-            off++
+            off += len(s)
             continue
         }
 
