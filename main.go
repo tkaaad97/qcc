@@ -361,7 +361,7 @@ func gen(node *Node) {
         fmt.Printf("  imul rax, rdi\n")
     case NodeDiv:
         fmt.Printf("  cqo\n")
-        fmt.Printf("  idiv rax\n")
+        fmt.Printf("  idiv rdi\n")
     }
 
     fmt.Printf("  push rax\n")
