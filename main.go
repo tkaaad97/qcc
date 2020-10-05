@@ -219,9 +219,23 @@ func primary(tokens []Token, offset *int) (*Node, error) {
     return nil, errors.New("primaryのパースに失敗しました。")
 }
 
+func unary(tokens []Token, offset *int) (*Node, error) {
+    if consumeOp(tokens, offset, "+") {
+        return primary(tokens, offset)
+    } else if consumeOp(tokens, offset, "-") {
+        if a, err := primary(tokens, offset); err != nil {
+            return nil, err
+        } else {
+            return newNode(NodeSub, newNodeNum(0), a), nil
+        }
+    }
+
+    return primary(tokens, offset)
+}
+
 func mul(tokens []Token, offset *int) (*Node, error) {
     var node *Node
-    if lhs, err := primary(tokens, offset); err != nil {
+    if lhs, err := unary(tokens, offset); err != nil {
         return nil, err
     } else {
         node = lhs
@@ -229,13 +243,13 @@ func mul(tokens []Token, offset *int) (*Node, error) {
 
     for {
         if consumeOp(tokens, offset, "*") {
-            if rhs, err := primary(tokens, offset); err != nil {
+            if rhs, err := unary(tokens, offset); err != nil {
                 return nil, err
             } else {
                 node = newNode(NodeMul, node, rhs)
             }
         } else if consumeOp(tokens, offset, "/") {
-            if rhs, err := primary(tokens, offset); err != nil {
+            if rhs, err := unary(tokens, offset); err != nil {
                 return nil, err
             } else {
                 node = newNode(NodeDiv, node, rhs)
