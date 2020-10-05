@@ -57,6 +57,64 @@ func tokenize(input []rune) ([]Token, error) {
             continue
         }
 
+        if (input[off] == '=') {
+            if (off + 1 >= l || input[off + 1] != '=') {
+                return tokens, errors.New("トークナイズ失敗しました。")
+            }
+            token := Token {
+                kind: TokenReserved,
+                str: "==",
+                pos: off,
+            }
+            tokens = append(tokens, token)
+            off++
+            continue
+        }
+
+        if (input[off] == '!') {
+            if (off + 1 >= l || input[off + 1] != '=') {
+                return tokens, errors.New("トークナイズ失敗しました。")
+            }
+            token := Token {
+                kind: TokenReserved,
+                str: "!=",
+                pos: off,
+            }
+            tokens = append(tokens, token)
+            off++
+            continue
+        }
+
+        if (input[off] == '<') {
+            s := "<"
+            if (off + 1 < l && input[off + 1] == '=') {
+                s = "<="
+            }
+            token := Token {
+                kind: TokenReserved,
+                str: s,
+                pos: off,
+            }
+            tokens = append(tokens, token)
+            off++
+            continue
+        }
+
+        if (input[off] == '>') {
+            s := ">"
+            if (off + 1 < l && input[off + 1] == '=') {
+                s = ">="
+            }
+            token := Token {
+                kind: TokenReserved,
+                str: s,
+                pos: off,
+            }
+            tokens = append(tokens, token)
+            off++
+            continue
+        }
+
         if (input[off] == '+' || input[off] == '-' || input[off] == '*' || input[off] == '/') {
             token := Token {
                 kind: TokenReserved,
