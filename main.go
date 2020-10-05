@@ -33,6 +33,12 @@ const (
     NodeMul
     NodeDiv
     NodeNum
+    NodeEq
+    NodeNeq
+    NodeLt
+    NodeLe
+    NodeGt
+    NodeGe
 )
 
 type Node struct {
@@ -320,6 +326,10 @@ func mul(tokens []Token, offset *int) (*Node, error) {
 }
 
 func expr(tokens []Token, offset *int) (*Node, error) {
+    return equality(tokens, offset)
+}
+
+func add(tokens []Token, offset *int) (*Node, error) {
     var node *Node
     if lhs, err := mul(tokens, offset); err != nil {
         return nil, err
@@ -339,6 +349,74 @@ func expr(tokens []Token, offset *int) (*Node, error) {
                 return nil, err
             } else {
                 node = newNode(NodeSub, node, rhs)
+            }
+        } else {
+            break
+        }
+    }
+    return node, nil
+}
+
+func equality(tokens []Token, offset *int) (*Node, error) {
+    var node *Node
+    if lhs, err := relational(tokens, offset); err != nil {
+        return nil, err
+    } else {
+        node = lhs
+    }
+
+    for {
+        if consumeOp(tokens, offset, "==") {
+            if rhs, err := relational(tokens, offset); err != nil {
+                return nil, err
+            } else {
+                node = newNode(NodeEq, node, rhs)
+            }
+        } else if consumeOp(tokens, offset, "!=") {
+            if rhs, err := relational(tokens, offset); err != nil {
+                return nil, err
+            } else {
+                node = newNode(NodeNeq, node, rhs)
+            }
+        } else {
+            break
+        }
+    }
+    return node, nil
+}
+
+func relational(tokens []Token, offset *int) (*Node, error) {
+    var node *Node
+    if lhs, err := add(tokens, offset); err != nil {
+        return nil, err
+    } else {
+        node = lhs
+    }
+
+    for {
+        if consumeOp(tokens, offset, "<") {
+            if rhs, err := add(tokens, offset); err != nil {
+                return nil, err
+            } else {
+                node = newNode(NodeLt, node, rhs)
+            }
+        } else if consumeOp(tokens, offset, "<=") {
+            if rhs, err := add(tokens, offset); err != nil {
+                return nil, err
+            } else {
+                node = newNode(NodeLe, node, rhs)
+            }
+        } else if consumeOp(tokens, offset, ">") {
+            if rhs, err := add(tokens, offset); err != nil {
+                return nil, err
+            } else {
+                node = newNode(NodeGt, node, rhs)
+            }
+        } else if consumeOp(tokens, offset, ">=") {
+            if rhs, err := add(tokens, offset); err != nil {
+                return nil, err
+            } else {
+                node = newNode(NodeGe, node, rhs)
             }
         } else {
             break
