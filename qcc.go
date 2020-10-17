@@ -30,12 +30,14 @@ const (
     NodeMul
     NodeDiv
     NodeNum
+    NodeAssign
     NodeEq
     NodeNeq
     NodeLt
     NodeLe
     NodeGt
     NodeGe
+    NodeLVar
 )
 
 type Node struct {
@@ -43,6 +45,7 @@ type Node struct {
     Lhs *Node
     Rhs *Node
     Val int
+    Offset int
 }
 
 func PrintErrorAt(input string, pos int, err string) {

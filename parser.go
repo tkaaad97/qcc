@@ -6,6 +6,10 @@ import (
     "unicode"
 )
 
+func IsIdent(str string) bool {
+    return len(str) == 1 && str[0] >= 'a' && str[1] <= 'z'
+}
+
 func Tokenize(input []rune) ([]Token, error) {
     l := len(input)
     off := 0
@@ -222,8 +226,20 @@ func ConsumeNum(tokens []Token, offset *int) (int, bool) {
     return 0, false
 }
 
+func ConsumeIdent(tokens []Token, offset *int) (string, bool) {
+    if *offset >= len(tokens) {
+        return "", false
+    }
+    token := tokens[*offset]
+    if token.Kind == TokenReserved && IsIdent(token.Str) {
+        (*offset)++
+        return token.Str, true
+    }
+    return "", false
+}
+
 func NewNode(kind NodeKind, lhs *Node, rhs *Node) *Node {
-    node := Node { kind, lhs, rhs, 0 }
+    node := Node { kind, lhs, rhs, 0, 0 }
     return &node
 }
 
@@ -233,9 +249,51 @@ func NewNodeNum(val int) *Node {
     return p
 }
 
+func NewNodeLVar(offset int) *Node {
+    p := NewNode(NodeNum, nil, nil)
+    (*p).Offset = offset
+    return p
+}
+
+func Program(tokens []Token, offset *int) ([]*Node, error) {
+    nodes := make([]*Node, 0, 10)
+    for {
+        if *offset >= len(tokens) {
+            break
+        }
+
+        if node, err := Stmt(tokens, offset); err != nil {
+            return []*Node{}, err
+        } else {
+            nodes = append(nodes, node)
+        }
+    }
+
+    return nodes, nil
+}
+
+func Stmt(tokens []Token, offset *int) (*Node, error) {
+    var node *Node
+    if expr, err := Expr(tokens, offset); err != nil {
+        return nil, err
+    } else {
+        node = expr
+    }
+
+    if !ConsumeOp(tokens, offset, ";") {
+        return nil, errors.New("Stmtパース失敗")
+    }
+    return node, nil
+}
+
 func Primary(tokens []Token, offset *int) (*Node, error) {
     if v, consumed := ConsumeNum(tokens, offset); consumed {
         return NewNodeNum(v), nil
+    }
+
+    if v, consumed := ConsumeIdent(tokens, offset); consumed {
+        offset := int(v[0]) - 'a'
+        return NewNodeLVar(offset), nil
     }
 
     if ConsumeLeftBracket(tokens, offset) {
@@ -296,7 +354,7 @@ func Mul(tokens []Token, offset *int) (*Node, error) {
 }
 
 func Expr(tokens []Token, offset *int) (*Node, error) {
-    return Equality(tokens, offset)
+    return Assign(tokens, offset)
 }
 
 func Add(tokens []Token, offset *int) (*Node, error) {
@@ -322,6 +380,24 @@ func Add(tokens []Token, offset *int) (*Node, error) {
             }
         } else {
             break
+        }
+    }
+    return node, nil
+}
+
+func Assign(tokens []Token, offset *int) (*Node, error) {
+    var node *Node
+    if lhs, err := Equality(tokens, offset); err != nil {
+        return nil, err
+    } else {
+        node = lhs
+    }
+
+    if ConsumeOp(tokens, offset, "=") {
+        if rhs, err := Assign(tokens, offset); err != nil {
+            return nil, err
+        } else {
+            node = NewNode(NodeAssign, node, rhs)
         }
     }
     return node, nil
