@@ -262,7 +262,7 @@ func NewNodeNum(val int) *Node {
 }
 
 func NewNodeLVar(offset int) *Node {
-    p := NewNode(NodeNum, nil, nil)
+    p := NewNode(NodeLVar, nil, nil)
     (*p).Offset = offset
     return p
 }
