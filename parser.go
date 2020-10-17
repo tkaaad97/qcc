@@ -1,6 +1,7 @@
 package main
 
 import (
+    "fmt"
     "errors"
     "strconv"
     "unicode"
@@ -58,7 +59,7 @@ func Tokenize(input []rune) ([]Token, error) {
                 Pos: off,
             }
             tokens = append(tokens, token)
-            off += 2
+            off += len(s)
             continue
         }
 
@@ -303,8 +304,8 @@ func Primary(tokens []Token, offset *int) (*Node, error) {
     }
 
     if v, consumed := ConsumeIdent(tokens, offset); consumed {
-        offset := int(v[0]) - 'a'
-        return NewNodeLVar(offset), nil
+        o := int(v[0]) - 'a'
+        return NewNodeLVar(o), nil
     }
 
     if ConsumeLeftBracket(tokens, offset) {
@@ -319,7 +320,7 @@ func Primary(tokens []Token, offset *int) (*Node, error) {
         }
     }
 
-    return nil, errors.New("Primaryのパースに失敗しました。")
+    return nil, fmt.Errorf("Primaryのパースに失敗しました。offset=%d", *offset)
 }
 
 func Unary(tokens []Token, offset *int) (*Node, error) {
