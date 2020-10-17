@@ -304,7 +304,7 @@ func Primary(tokens []Token, offset *int) (*Node, error) {
     }
 
     if v, consumed := ConsumeIdent(tokens, offset); consumed {
-        o := int(v[0]) - 'a'
+        o := (int(v[0]) - 'a' + 1) * 8
         return NewNodeLVar(o), nil
     }
 

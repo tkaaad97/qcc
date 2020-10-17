@@ -28,11 +28,6 @@ func main() {
         os.Exit(1)
     } else {
         // アセンブラ生成
-        fmt.Printf(".intel_syntax noprefix\n")
-        fmt.Printf(".globl main\n")
-        fmt.Printf("main:\n")
         GenProgram(nodes);
-        fmt.Printf("  pop rax\n")
-        fmt.Printf("  ret\n")
     }
 }

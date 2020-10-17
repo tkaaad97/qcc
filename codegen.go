@@ -6,9 +6,24 @@ import (
 )
 
 func GenProgram(nodes []*Node) {
+    fmt.Printf(".intel_syntax noprefix\n")
+    fmt.Printf(".globl main\n")
+    fmt.Printf("main:\n")
+
+    // プロローグ
+    fmt.Printf("  push rbp\n")
+    fmt.Printf("  mov rbp, rsp\n")
+    fmt.Printf("  sub rsp, 208\n")
+
     for _, node := range(nodes) {
         Gen(node)
+        fmt.Printf("  pop rax\n")
     }
+
+    // エピローグ
+    fmt.Printf("  mov rsp, rbp\n")
+    fmt.Printf("  pop rbp\n")
+    fmt.Printf("  ret\n")
 }
 
 func GenLVar(node *Node) {
