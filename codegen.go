@@ -2,11 +2,45 @@ package main
 
 import (
     "fmt"
+    "os"
 )
 
+func GenProgram(nodes []*Node) {
+    for _, node := range(nodes) {
+        Gen(node)
+    }
+}
+
+func GenLVar(node *Node) {
+    if (*node).Kind != NodeLVar {
+        fmt.Fprintf(os.Stderr, "代入の左辺値が変数ではありません。\n")
+        os.Exit(1)
+    }
+
+    fmt.Printf("  mov rax, rbp\n")
+    fmt.Printf("  sub rax, %d\n", (*node).Offset)
+    fmt.Printf("  push rax\n")
+}
+
 func Gen(node *Node) {
-    if ((*node).Kind == NodeNum) {
+    switch ((*node).Kind) {
+    case NodeNum:
         fmt.Printf("  push %d\n", (*node).Val)
+        return
+    case NodeLVar:
+        GenLVar(node)
+        fmt.Printf("  pop rax\n")
+        fmt.Printf("  mov rax, [rax]\n")
+        fmt.Printf("  push rax\n")
+        return
+    case NodeAssign:
+        GenLVar((*node).Lhs)
+        Gen((*node).Rhs)
+
+        fmt.Printf("  pop rdi\n")
+        fmt.Printf("  pop rax\n")
+        fmt.Printf("  mov [rax], rdi\n")
+        fmt.Printf("  push rdi\n")
         return
     }
 
