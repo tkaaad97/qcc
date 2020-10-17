@@ -21,13 +21,25 @@ func Tokenize(input []rune) ([]Token, error) {
             continue
         }
 
+        if (input[off] >= 'a' && input[off] <= 'z') {
+            token := Token {
+                Kind: TokenReserved,
+                Str: string([]rune{input[off]}),
+                Pos: off,
+            }
+            tokens = append(tokens, token)
+            off += 2
+            continue
+        }
+
         if (input[off] == '=') {
-            if (off + 1 >= l || input[off + 1] != '=') {
-                return tokens, errors.New("トークナイズ失敗しました。")
+            s := "="
+            if (off + 1 < l && input[off + 1] == '=') {
+                s = "=="
             }
             token := Token {
                 Kind: TokenReserved,
-                Str: "==",
+                Str: s,
                 Pos: off,
             }
             tokens = append(tokens, token)
