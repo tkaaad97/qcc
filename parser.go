@@ -7,7 +7,7 @@ import (
 )
 
 func IsIdent(str string) bool {
-    return len(str) == 1 && str[0] >= 'a' && str[1] <= 'z'
+    return len(str) == 1 && str[0] >= 'a' && str[0] <= 'z'
 }
 
 func Tokenize(input []rune) ([]Token, error) {
@@ -32,7 +32,18 @@ func Tokenize(input []rune) ([]Token, error) {
                 Pos: off,
             }
             tokens = append(tokens, token)
-            off += 2
+            off++
+            continue
+        }
+
+        if (input[off] == ';') {
+            token := Token {
+                Kind: TokenReserved,
+                Str: ";",
+                Pos: off,
+            }
+            tokens = append(tokens, token)
+            off++
             continue
         }
 
