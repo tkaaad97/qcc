@@ -23,7 +23,7 @@ func main() {
 
     // exprパース
     offset := 0
-    if node, err := Expr(tokens, &offset); err != nil {
+    if nodes, err := Program(tokens, &offset); err != nil {
         fmt.Fprintf(os.Stderr, err.Error())
         os.Exit(1)
     } else {
@@ -31,7 +31,7 @@ func main() {
         fmt.Printf(".intel_syntax noprefix\n")
         fmt.Printf(".globl main\n")
         fmt.Printf("main:\n")
-        Gen(node);
+        GenProgram(nodes);
         fmt.Printf("  pop rax\n")
         fmt.Printf("  ret\n")
     }
