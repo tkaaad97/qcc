@@ -190,61 +190,61 @@ func ParseNum(input []rune, offset int) (Token, int, error) {
     return token, a, nil
 }
 
-func ConsumeLeftBracket(tokens []Token, offset *int) bool {
-    if *offset >= len(tokens) {
+func ConsumeLeftBracket(state *ParserState) bool {
+    if (*state).Offset >= len((*state).Tokens) {
         return false
     }
-    token := tokens[*offset]
+    token := (*state).Tokens[(*state).Offset]
     if token.Kind == TokenLeftBracket {
-        (*offset)++
+        (*state).Offset++
         return true
     }
     return false
 }
 
-func ConsumeRightBracket(tokens []Token, offset *int) bool {
-    if *offset >= len(tokens) {
+func ConsumeRightBracket(state *ParserState) bool {
+    if (*state).Offset >= len((*state).Tokens) {
         return false
     }
-    token := tokens[*offset]
+    token := (*state).Tokens[(*state).Offset]
     if token.Kind == TokenRightBracket {
-        (*offset)++
+        (*state).Offset++
         return true
     }
     return false
 }
 
-func ConsumeOp(tokens []Token, offset *int, op string) bool {
-    if *offset >= len(tokens) {
+func ConsumeOp(state *ParserState, op string) bool {
+    if (*state).Offset >= len((*state).Tokens) {
         return false
     }
-    token := tokens[*offset]
+    token := (*state).Tokens[(*state).Offset]
     if token.Kind == TokenReserved && token.Str == op {
-        (*offset)++
+        (*state).Offset++
         return true
     }
     return false
 }
 
-func ConsumeNum(tokens []Token, offset *int) (int, bool) {
-    if *offset >= len(tokens) {
+func ConsumeNum(state *ParserState) (int, bool) {
+    if (*state).Offset >= len((*state).Tokens) {
         return 0, false
     }
-    token := tokens[*offset]
+    token := (*state).Tokens[(*state).Offset]
     if token.Kind == TokenNum {
-        (*offset)++
+        (*state).Offset++
         return token.Val, true
     }
     return 0, false
 }
 
-func ConsumeIdent(tokens []Token, offset *int) (string, bool) {
-    if *offset >= len(tokens) {
+func ConsumeIdent(state *ParserState) (string, bool) {
+    if (*state).Offset >= len((*state).Tokens) {
         return "", false
     }
-    token := tokens[*offset]
+    token := (*state).Tokens[(*state).Offset]
     if token.Kind == TokenReserved && IsIdent(token.Str) {
-        (*offset)++
+        (*state).Offset++
         return token.Str, true
     }
     return "", false
@@ -267,14 +267,14 @@ func NewNodeLVar(offset int) *Node {
     return p
 }
 
-func Program(tokens []Token, offset *int) ([]*Node, error) {
+func Program(state *ParserState) ([]*Node, error) {
     nodes := make([]*Node, 0, 10)
     for {
-        if *offset >= len(tokens) {
+        if (*state).Offset >= len((*state).Tokens) {
             break
         }
 
-        if node, err := Stmt(tokens, offset); err != nil {
+        if node, err := Stmt(state); err != nil {
             return []*Node{}, err
         } else {
             nodes = append(nodes, node)
@@ -284,35 +284,35 @@ func Program(tokens []Token, offset *int) ([]*Node, error) {
     return nodes, nil
 }
 
-func Stmt(tokens []Token, offset *int) (*Node, error) {
+func Stmt(state *ParserState) (*Node, error) {
     var node *Node
-    if expr, err := Expr(tokens, offset); err != nil {
+    if expr, err := Expr(state); err != nil {
         return nil, err
     } else {
         node = expr
     }
 
-    if !ConsumeOp(tokens, offset, ";") {
+    if !ConsumeOp(state, ";") {
         return nil, errors.New("Stmtパース失敗")
     }
     return node, nil
 }
 
-func Primary(tokens []Token, offset *int) (*Node, error) {
-    if v, consumed := ConsumeNum(tokens, offset); consumed {
+func Primary(state *ParserState) (*Node, error) {
+    if v, consumed := ConsumeNum(state); consumed {
         return NewNodeNum(v), nil
     }
 
-    if v, consumed := ConsumeIdent(tokens, offset); consumed {
+    if v, consumed := ConsumeIdent(state); consumed {
         o := (int(v[0]) - 'a' + 1) * 8
         return NewNodeLVar(o), nil
     }
 
-    if ConsumeLeftBracket(tokens, offset) {
-        if n, err := Expr(tokens, offset); err != nil {
+    if ConsumeLeftBracket(state) {
+        if n, err := Expr(state); err != nil {
             return nil, err
         } else {
-            if ConsumeRightBracket(tokens, offset) {
+            if ConsumeRightBracket(state) {
                 return n, nil
             } else {
                 return nil, errors.New("右括弧が不足しています")
@@ -320,40 +320,40 @@ func Primary(tokens []Token, offset *int) (*Node, error) {
         }
     }
 
-    return nil, fmt.Errorf("Primaryのパースに失敗しました。offset=%d", *offset)
+    return nil, fmt.Errorf("Primaryのパースに失敗しました。state: %v", *state)
 }
 
-func Unary(tokens []Token, offset *int) (*Node, error) {
-    if ConsumeOp(tokens, offset, "+") {
-        return Primary(tokens, offset)
-    } else if ConsumeOp(tokens, offset, "-") {
-        if a, err := Primary(tokens, offset); err != nil {
+func Unary(state *ParserState) (*Node, error) {
+    if ConsumeOp(state, "+") {
+        return Primary(state)
+    } else if ConsumeOp(state, "-") {
+        if a, err := Primary(state); err != nil {
             return nil, err
         } else {
             return NewNode(NodeSub, NewNodeNum(0), a), nil
         }
     }
 
-    return Primary(tokens, offset)
+    return Primary(state)
 }
 
-func Mul(tokens []Token, offset *int) (*Node, error) {
+func Mul(state *ParserState) (*Node, error) {
     var node *Node
-    if lhs, err := Unary(tokens, offset); err != nil {
+    if lhs, err := Unary(state); err != nil {
         return nil, err
     } else {
         node = lhs
     }
 
     for {
-        if ConsumeOp(tokens, offset, "*") {
-            if rhs, err := Unary(tokens, offset); err != nil {
+        if ConsumeOp(state, "*") {
+            if rhs, err := Unary(state); err != nil {
                 return nil, err
             } else {
                 node = NewNode(NodeMul, node, rhs)
             }
-        } else if ConsumeOp(tokens, offset, "/") {
-            if rhs, err := Unary(tokens, offset); err != nil {
+        } else if ConsumeOp(state, "/") {
+            if rhs, err := Unary(state); err != nil {
                 return nil, err
             } else {
                 node = NewNode(NodeDiv, node, rhs)
@@ -365,27 +365,27 @@ func Mul(tokens []Token, offset *int) (*Node, error) {
     return node, nil
 }
 
-func Expr(tokens []Token, offset *int) (*Node, error) {
-    return Assign(tokens, offset)
+func Expr(state *ParserState) (*Node, error) {
+    return Assign(state)
 }
 
-func Add(tokens []Token, offset *int) (*Node, error) {
+func Add(state *ParserState) (*Node, error) {
     var node *Node
-    if lhs, err := Mul(tokens, offset); err != nil {
+    if lhs, err := Mul(state); err != nil {
         return nil, err
     } else {
         node = lhs
     }
 
     for {
-        if ConsumeOp(tokens, offset, "+") {
-            if rhs, err := Mul(tokens, offset); err != nil {
+        if ConsumeOp(state, "+") {
+            if rhs, err := Mul(state); err != nil {
                 return nil, err
             } else {
                 node = NewNode(NodeAdd, node, rhs)
             }
-        } else if ConsumeOp(tokens, offset, "-") {
-            if rhs, err := Mul(tokens, offset); err != nil {
+        } else if ConsumeOp(state, "-") {
+            if rhs, err := Mul(state); err != nil {
                 return nil, err
             } else {
                 node = NewNode(NodeSub, node, rhs)
@@ -397,16 +397,16 @@ func Add(tokens []Token, offset *int) (*Node, error) {
     return node, nil
 }
 
-func Assign(tokens []Token, offset *int) (*Node, error) {
+func Assign(state *ParserState) (*Node, error) {
     var node *Node
-    if lhs, err := Equality(tokens, offset); err != nil {
+    if lhs, err := Equality(state); err != nil {
         return nil, err
     } else {
         node = lhs
     }
 
-    if ConsumeOp(tokens, offset, "=") {
-        if rhs, err := Assign(tokens, offset); err != nil {
+    if ConsumeOp(state, "=") {
+        if rhs, err := Assign(state); err != nil {
             return nil, err
         } else {
             node = NewNode(NodeAssign, node, rhs)
@@ -415,23 +415,23 @@ func Assign(tokens []Token, offset *int) (*Node, error) {
     return node, nil
 }
 
-func Equality(tokens []Token, offset *int) (*Node, error) {
+func Equality(state *ParserState) (*Node, error) {
     var node *Node
-    if lhs, err := Relational(tokens, offset); err != nil {
+    if lhs, err := Relational(state); err != nil {
         return nil, err
     } else {
         node = lhs
     }
 
     for {
-        if ConsumeOp(tokens, offset, "==") {
-            if rhs, err := Relational(tokens, offset); err != nil {
+        if ConsumeOp(state, "==") {
+            if rhs, err := Relational(state); err != nil {
                 return nil, err
             } else {
                 node = NewNode(NodeEq, node, rhs)
             }
-        } else if ConsumeOp(tokens, offset, "!=") {
-            if rhs, err := Relational(tokens, offset); err != nil {
+        } else if ConsumeOp(state, "!=") {
+            if rhs, err := Relational(state); err != nil {
                 return nil, err
             } else {
                 node = NewNode(NodeNeq, node, rhs)
@@ -443,35 +443,35 @@ func Equality(tokens []Token, offset *int) (*Node, error) {
     return node, nil
 }
 
-func Relational(tokens []Token, offset *int) (*Node, error) {
+func Relational(state *ParserState) (*Node, error) {
     var node *Node
-    if lhs, err := Add(tokens, offset); err != nil {
+    if lhs, err := Add(state); err != nil {
         return nil, err
     } else {
         node = lhs
     }
 
     for {
-        if ConsumeOp(tokens, offset, "<") {
-            if rhs, err := Add(tokens, offset); err != nil {
+        if ConsumeOp(state, "<") {
+            if rhs, err := Add(state); err != nil {
                 return nil, err
             } else {
                 node = NewNode(NodeLt, node, rhs)
             }
-        } else if ConsumeOp(tokens, offset, "<=") {
-            if rhs, err := Add(tokens, offset); err != nil {
+        } else if ConsumeOp(state, "<=") {
+            if rhs, err := Add(state); err != nil {
                 return nil, err
             } else {
                 node = NewNode(NodeLe, node, rhs)
             }
-        } else if ConsumeOp(tokens, offset, ">") {
-            if rhs, err := Add(tokens, offset); err != nil {
+        } else if ConsumeOp(state, ">") {
+            if rhs, err := Add(state); err != nil {
                 return nil, err
             } else {
                 node = NewNode(NodeGt, node, rhs)
             }
-        } else if ConsumeOp(tokens, offset, ">=") {
-            if rhs, err := Add(tokens, offset); err != nil {
+        } else if ConsumeOp(state, ">=") {
+            if rhs, err := Add(state); err != nil {
                 return nil, err
             } else {
                 node = NewNode(NodeGe, node, rhs)

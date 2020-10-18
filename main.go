@@ -22,8 +22,9 @@ func main() {
     }
 
     // exprパース
-    offset := 0
-    if nodes, err := Program(tokens, &offset); err != nil {
+    locals := map[string]int{}
+    state := ParserState { tokens, 0, &locals, }
+    if nodes, err := Program(&state); err != nil {
         fmt.Fprintf(os.Stderr, err.Error())
         os.Exit(1)
     } else {
