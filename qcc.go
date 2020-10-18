@@ -13,6 +13,7 @@ const (
     TokenRightBracket
     TokenNum
     TokenIdent
+    TokenReturn
     TokenEof
 )
 

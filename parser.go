@@ -50,6 +50,9 @@ func Tokenize(input []rune) ([]Token, error) {
                 Str: string(ident),
                 Pos: off,
             }
+            if token.Str == "return" {
+                token.Kind = TokenReturn
+            }
             tokens = append(tokens, token)
             continue
         }
