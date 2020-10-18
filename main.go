@@ -22,13 +22,13 @@ func main() {
     }
 
     // exprパース
-    locals := map[string]int{}
+    locals := map[string]*Node{}
     state := ParserState { tokens, 0, &locals, }
     if nodes, err := Program(&state); err != nil {
         fmt.Fprintf(os.Stderr, err.Error())
         os.Exit(1)
     } else {
         // アセンブラ生成
-        GenProgram(nodes);
+        GenProgram(nodes, len(locals));
     }
 }

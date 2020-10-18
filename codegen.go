@@ -5,7 +5,7 @@ import (
     "os"
 )
 
-func GenProgram(nodes []*Node) {
+func GenProgram(nodes []*Node, localsLen int) {
     fmt.Printf(".intel_syntax noprefix\n")
     fmt.Printf(".globl main\n")
     fmt.Printf("main:\n")
@@ -13,7 +13,7 @@ func GenProgram(nodes []*Node) {
     // プロローグ
     fmt.Printf("  push rbp\n")
     fmt.Printf("  mov rbp, rsp\n")
-    fmt.Printf("  sub rsp, 208\n")
+    fmt.Printf("  sub rsp, %d\n", localsLen * 8)
 
     for _, node := range(nodes) {
         Gen(node)

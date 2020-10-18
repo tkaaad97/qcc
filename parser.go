@@ -8,7 +8,12 @@ import (
 )
 
 func IsIdent(str string) bool {
-    return len(str) == 1 && str[0] >= 'a' && str[0] <= 'z'
+    for _, c := range(str) {
+        if c < 'a' || c > 'z' {
+            return false;
+        }
+    }
+    return true;
 }
 
 func Tokenize(input []rune) ([]Token, error) {
@@ -27,13 +32,25 @@ func Tokenize(input []rune) ([]Token, error) {
         }
 
         if (input[off] >= 'a' && input[off] <= 'z') {
+            ident := make([]rune, 1, 10)
+            ident[0] = input[off]
+            off++
+            for {
+                if off >= l {
+                    break
+                }
+                if input[off] < 'a' || input[off] > 'z' {
+                    break
+                }
+                ident = append(ident, input[off])
+                off++
+            }
             token := Token {
                 Kind: TokenReserved,
-                Str: string([]rune{input[off]}),
+                Str: string(ident),
                 Pos: off,
             }
             tokens = append(tokens, token)
-            off++
             continue
         }
 
@@ -261,9 +278,15 @@ func NewNodeNum(val int) *Node {
     return p
 }
 
-func NewNodeLVar(offset int) *Node {
+func NewNodeLVar(state *ParserState, name string) *Node {
+    locals := *(*state).Locals
+    if n, ok := locals[name]; ok {
+        return n
+    }
+    o := (len(locals) + 1) * 8
     p := NewNode(NodeLVar, nil, nil)
-    (*p).Offset = offset
+    (*p).Offset = o
+    locals[name] = p
     return p
 }
 
@@ -303,9 +326,8 @@ func Primary(state *ParserState) (*Node, error) {
         return NewNodeNum(v), nil
     }
 
-    if v, consumed := ConsumeIdent(state); consumed {
-        o := (int(v[0]) - 'a' + 1) * 8
-        return NewNodeLVar(o), nil
+    if ident, consumed := ConsumeIdent(state); consumed {
+        return NewNodeLVar(state, ident), nil
     }
 
     if ConsumeLeftBracket(state) {

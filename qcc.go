@@ -52,7 +52,7 @@ type Node struct {
 type ParserState struct {
     Tokens []Token
     Offset int
-    Locals *map[string]int
+    Locals *map[string]*Node
 }
 
 func PrintErrorAt(input string, pos int, err string) {
