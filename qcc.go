@@ -44,7 +44,7 @@ const (
     NodeLVar
     NodeReturn
     NodeIf
-    NodeElse
+    NodeEither
 )
 
 type Node struct {

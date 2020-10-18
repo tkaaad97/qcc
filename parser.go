@@ -231,28 +231,28 @@ func ParseNum(input []rune, offset int) (Token, int, error) {
     return token, a, nil
 }
 
-func ConsumeLeftBracket(state *ParserState) bool {
+func ConsumeTokenKind(state *ParserState, kind TokenKind) bool {
     if (*state).Offset >= len((*state).Tokens) {
         return false
     }
     token := (*state).Tokens[(*state).Offset]
-    if token.Kind == TokenLeftBracket {
+    if token.Kind == kind {
         (*state).Offset++
         return true
     }
     return false
 }
 
+func ConsumeLeftBracket(state *ParserState) bool {
+    return ConsumeTokenKind(state, TokenLeftBracket)
+}
+
 func ConsumeRightBracket(state *ParserState) bool {
-    if (*state).Offset >= len((*state).Tokens) {
-        return false
-    }
-    token := (*state).Tokens[(*state).Offset]
-    if token.Kind == TokenRightBracket {
-        (*state).Offset++
-        return true
-    }
-    return false
+    return ConsumeTokenKind(state, TokenRightBracket)
+}
+
+func ConsumeElse(state *ParserState) bool {
+    return ConsumeTokenKind(state, TokenElse)
 }
 
 func ConsumeOp(state *ParserState, op string) bool {
@@ -339,6 +339,40 @@ func Stmt(state *ParserState) (*Node, error) {
     token := (*state).Tokens[(*state).Offset]
     if token.Kind == TokenReturn {
         return Return(state)
+    }
+
+    if token.Kind == TokenIf {
+        if !ConsumeLeftBracket(state) {
+            return nil, errors.New("Stmtパース失敗")
+        }
+
+        var cond *Node
+        if expr, err := Expr(state); err != nil {
+            return nil, err
+        } else {
+            cond = expr
+        }
+
+        if !ConsumeRightBracket(state) {
+            return nil, errors.New("Stmtパース失敗。\")\"が不足しています。")
+        }
+
+        var rhs *Node
+        if stmt, err := Stmt(state); err != nil {
+            return nil, err
+        } else {
+            rhs = stmt
+        }
+
+        if ConsumeElse(state) {
+            if stmt, err := Stmt(state); err != nil {
+                return nil, err
+            } else {
+                rhs = NewNode(NodeEither, rhs, stmt)
+            }
+        }
+
+        return NewNode(NodeIf, cond, rhs), nil
     }
 
     var node *Node
