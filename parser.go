@@ -7,11 +7,26 @@ import (
     "unicode"
 )
 
+func IsAlpha(a rune) bool {
+    return (a >= 'a' && a <= 'z') || (a >= 'A' && a <= 'Z') || (a == '_')
+}
+
+func IsAlnum(a rune) bool {
+    return unicode.IsDigit(a) || IsAlpha(a)
+}
+
 func IsIdent(str string) bool {
-    for _, c := range(str) {
-        if c < 'a' || c > 'z' {
-            return false;
+    for i, c := range([]rune(str)) {
+        if i == 0 {
+            if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') {
+                continue
+            }
+        } else {
+            if IsAlnum(c) {
+                continue
+            }
         }
+        return false
     }
     return true;
 }
@@ -31,7 +46,7 @@ func Tokenize(input []rune) ([]Token, error) {
             continue
         }
 
-        if (input[off] >= 'a' && input[off] <= 'z') {
+        if IsAlpha(input[off]) {
             ident := make([]rune, 1, 10)
             ident[0] = input[off]
             off++
@@ -39,7 +54,7 @@ func Tokenize(input []rune) ([]Token, error) {
                 if off >= l {
                     break
                 }
-                if input[off] < 'a' || input[off] > 'z' {
+                if !IsAlnum(input[off]) {
                     break
                 }
                 ident = append(ident, input[off])

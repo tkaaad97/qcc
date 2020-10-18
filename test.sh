@@ -46,5 +46,6 @@ assert 2 'a=1;b=1;c=a+b;c;'
 assert 5 'a=1;b=2+3;c=-1;a+b;d=a+b+c;'
 assert 2 'foo=1;bar=1;cdr=foo+bar;cdr;'
 assert 123 '1+1;a=1;return 123;b=3;c=a+b;c;'
+assert 5 'a1=1;a2=2;a3=a1+a2;a3*2-1;'
 
 echo OK
