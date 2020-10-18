@@ -9,6 +9,14 @@ type GenState struct {
     LabelCounter int
 }
 
+func IsControlStatement(node *Node) bool {
+    switch ((*node).Kind) {
+    case NodeIf:
+        return true
+    }
+    return false
+}
+
 func GenProgram(nodes []*Node, localsLen int) {
     fmt.Printf(".intel_syntax noprefix\n")
     fmt.Printf(".globl main\n")
@@ -22,7 +30,9 @@ func GenProgram(nodes []*Node, localsLen int) {
     state := GenState { 1 }
     for _, node := range(nodes) {
         Gen(node, &state)
-        fmt.Printf("  pop rax\n")
+        if !IsControlStatement(node) {
+            fmt.Printf("  pop rax\n")
+        }
     }
 
     // エピローグ
@@ -82,9 +92,11 @@ func Gen(node *Node, state *GenState) {
             fmt.Printf(".Lelse%d:\n", label)
             Gen((*rhs).Rhs, state)
             fmt.Printf(".Lend%d:\n", label)
+            fmt.Printf("  pop rax\n")
         } else {
-            fmt.Printf("  je .Lend%d:\n", label)
+            fmt.Printf("  je .Lend%d\n", label)
             Gen((*node).Rhs, state)
+            fmt.Printf("  pop rax\n")
             fmt.Printf(".Lend%d:\n", label)
         }
         (*state).LabelCounter++

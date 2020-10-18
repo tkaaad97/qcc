@@ -333,7 +333,7 @@ func Program(state *ParserState) ([]*Node, error) {
 
 func Stmt(state *ParserState) (*Node, error) {
     if (*state).Offset >= len((*state).Tokens) {
-        return nil, errors.New("Stmtパース失敗")
+        return nil, fmt.Errorf("Stmtパース失敗 %v", *state)
     }
 
     token := (*state).Tokens[(*state).Offset]
@@ -342,8 +342,9 @@ func Stmt(state *ParserState) (*Node, error) {
     }
 
     if token.Kind == TokenIf {
+        (*state).Offset++
         if !ConsumeLeftBracket(state) {
-            return nil, errors.New("Stmtパース失敗")
+            return nil, fmt.Errorf("Stmtパース失敗 %v", *state)
         }
 
         var cond *Node
