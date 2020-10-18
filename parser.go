@@ -311,6 +311,15 @@ func Program(state *ParserState) ([]*Node, error) {
 }
 
 func Stmt(state *ParserState) (*Node, error) {
+    if (*state).Offset >= len((*state).Tokens) {
+        return nil, errors.New("Stmtパース失敗")
+    }
+
+    token := (*state).Tokens[(*state).Offset]
+    if token.Kind == TokenReturn {
+        return Return(state)
+    }
+
     var node *Node
     if expr, err := Expr(state); err != nil {
         return nil, err
@@ -322,6 +331,27 @@ func Stmt(state *ParserState) (*Node, error) {
         return nil, errors.New("Stmtパース失敗")
     }
     return node, nil
+}
+
+func Return(state *ParserState) (*Node, error) {
+    if (*state).Offset >= len((*state).Tokens) {
+        return nil, errors.New("Returnパース失敗")
+    }
+
+    token := (*state).Tokens[(*state).Offset]
+    if token.Kind != TokenReturn {
+        return nil, errors.New("Returnパース失敗")
+    }
+    (*state).Offset++
+
+    if e, err := Expr(state); err != nil {
+        return nil, errors.New("Returnパース失敗")
+    } else {
+        if !ConsumeOp(state, ";") {
+            return nil, errors.New("Returnパース失敗")
+        }
+        return NewNode(NodeReturn, e, nil), nil
+    }
 }
 
 func Primary(state *ParserState) (*Node, error) {

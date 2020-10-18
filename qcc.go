@@ -40,6 +40,7 @@ const (
     NodeGt
     NodeGe
     NodeLVar
+    NodeReturn
 )
 
 type Node struct {
