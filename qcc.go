@@ -12,6 +12,7 @@ const (
     TokenLeftBracket
     TokenRightBracket
     TokenNum
+    TokenIdent
     TokenEof
 )
 
@@ -46,6 +47,12 @@ type Node struct {
     Rhs *Node
     Val int
     Offset int
+}
+
+type ParserState struct {
+    Tokens []Token
+    Offset int
+    Locals map[string]int
 }
 
 func PrintErrorAt(input string, pos int, err string) {
