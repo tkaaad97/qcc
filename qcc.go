@@ -14,6 +14,8 @@ const (
     TokenNum
     TokenIdent
     TokenReturn
+    TokenIf
+    TokenElse
     TokenEof
 )
 
@@ -41,6 +43,8 @@ const (
     NodeGe
     NodeLVar
     NodeReturn
+    NodeIf
+    NodeElse
 )
 
 type Node struct {

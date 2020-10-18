@@ -60,13 +60,19 @@ func Tokenize(input []rune) ([]Token, error) {
                 ident = append(ident, input[off])
                 off++
             }
+            kind := TokenReserved
+            switch (string(ident)) {
+            case "return":
+                kind = TokenReturn
+            case "if":
+                kind = TokenIf
+            case "else":
+                kind = TokenElse
+            }
             token := Token {
-                Kind: TokenReserved,
+                Kind: kind,
                 Str: string(ident),
                 Pos: off,
-            }
-            if token.Str == "return" {
-                token.Kind = TokenReturn
             }
             tokens = append(tokens, token)
             continue
