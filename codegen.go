@@ -9,14 +9,6 @@ type GenState struct {
     LabelCounter int
 }
 
-func IsControlStatement(node *Node) bool {
-    switch ((*node).Kind) {
-    case NodeIf:
-        return true
-    }
-    return false
-}
-
 func GenProgram(nodes []*Node, localsLen int) {
     fmt.Printf(".intel_syntax noprefix\n")
     fmt.Printf(".globl main\n")
@@ -30,9 +22,6 @@ func GenProgram(nodes []*Node, localsLen int) {
     state := GenState { 1 }
     for _, node := range(nodes) {
         Gen(node, &state)
-        if !IsControlStatement(node) {
-            fmt.Printf("  pop rax\n")
-        }
     }
 
     // エピローグ
@@ -41,7 +30,7 @@ func GenProgram(nodes []*Node, localsLen int) {
     fmt.Printf("  ret\n")
 }
 
-func GenLVar(node *Node) {
+func GenLVarAddress(node *Node) {
     if (*node).Kind != NodeLVar {
         fmt.Fprintf(os.Stderr, "代入の左辺値が変数ではありません。\n")
         os.Exit(1)
@@ -49,39 +38,34 @@ func GenLVar(node *Node) {
 
     fmt.Printf("  mov rax, rbp\n")
     fmt.Printf("  sub rax, %d\n", (*node).Offset)
-    fmt.Printf("  push rax\n")
 }
 
 func Gen(node *Node, state *GenState) {
     switch ((*node).Kind) {
     case NodeReturn:
         Gen((*node).Lhs, state)
-        fmt.Printf("  pop rax\n")
         fmt.Printf("  mov rsp, rbp\n")
         fmt.Printf("  pop rbp\n")
         fmt.Printf("  ret\n")
         return
     case NodeNum:
-        fmt.Printf("  push %d\n", (*node).Val)
+        fmt.Printf("  mov rax, %d\n", (*node).Val)
         return
     case NodeLVar:
-        GenLVar(node)
-        fmt.Printf("  pop rax\n")
+        GenLVarAddress(node)
         fmt.Printf("  mov rax, [rax]\n")
-        fmt.Printf("  push rax\n")
         return
     case NodeAssign:
-        GenLVar((*node).Lhs)
+        GenLVarAddress((*node).Lhs)
+        fmt.Printf("  push rax\n")
         Gen((*node).Rhs, state)
-
-        fmt.Printf("  pop rdi\n")
+        fmt.Printf("  mov rdi, rax\n")
         fmt.Printf("  pop rax\n")
         fmt.Printf("  mov [rax], rdi\n")
-        fmt.Printf("  push rdi\n")
+        fmt.Printf("  mov rax, rdi\n")
         return
     case NodeIf:
         Gen((*node).Lhs, state)
-        fmt.Printf("  pop rax\n")
         fmt.Printf("  cmp rax, 0\n")
         rhs := (*node).Rhs
         label := (*state).LabelCounter
@@ -92,11 +76,9 @@ func Gen(node *Node, state *GenState) {
             fmt.Printf(".Lelse%d:\n", label)
             Gen((*rhs).Rhs, state)
             fmt.Printf(".Lend%d:\n", label)
-            fmt.Printf("  pop rax\n")
         } else {
             fmt.Printf("  je .Lend%d\n", label)
             Gen((*node).Rhs, state)
-            fmt.Printf("  pop rax\n")
             fmt.Printf(".Lend%d:\n", label)
         }
         (*state).LabelCounter++
@@ -104,9 +86,10 @@ func Gen(node *Node, state *GenState) {
     }
 
     Gen((*node).Lhs, state)
+    fmt.Printf("  push rax\n")
     Gen((*node).Rhs, state)
 
-    fmt.Printf("  pop rdi\n")
+    fmt.Printf("  mov rdi, rax\n")
     fmt.Printf("  pop rax\n")
 
     switch((*node).Kind) {
@@ -145,5 +128,5 @@ func Gen(node *Node, state *GenState) {
         fmt.Printf("movzb rax, al\n")
     }
 
-    fmt.Printf("  push rax\n")
+    return
 }
