@@ -16,6 +16,7 @@ const (
     TokenReturn
     TokenIf
     TokenElse
+    TokenFor
     TokenWhile
     TokenEof
 )
@@ -46,6 +47,9 @@ const (
     NodeReturn
     NodeIf
     NodeEither
+    NodeFor
+    NodeForFirst
+    NodeForSecond
     NodeWhile
 )
 

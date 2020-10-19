@@ -68,6 +68,8 @@ func Tokenize(input []rune) ([]Token, error) {
                 kind = TokenIf
             case "else":
                 kind = TokenElse
+            case "for":
+                kind = TokenFor
             case "while":
                 kind = TokenWhile
             }
@@ -376,6 +378,59 @@ func Stmt(state *ParserState) (*Node, error) {
         }
 
         return NewNode(NodeIf, cond, rhs), nil
+    }
+
+    if token.Kind == TokenFor {
+        (*state).Offset++
+        if !ConsumeLeftBracket(state) {
+            return nil, fmt.Errorf("Stmtパース失敗 %v", *state)
+        }
+
+        var pre *Node
+        if !ConsumeOp(state, ";") {
+            if expr, err := Expr(state); err != nil {
+                return nil, err
+            } else {
+                pre = expr
+            }
+        } else {
+            pre = NewNodeNum(1)
+        }
+
+        var cond *Node
+        if !ConsumeOp(state, ";") {
+            if expr, err := Expr(state); err != nil {
+                return nil, err
+            } else {
+                cond = expr
+            }
+        } else {
+            cond = NewNodeNum(1)
+        }
+
+        var post *Node
+        if !ConsumeRightBracket(state) {
+            if expr, err := Expr(state); err != nil {
+                return nil, err
+            } else {
+                post = expr
+            }
+
+            if ConsumeRightBracket(state) {
+                return nil, errors.New("Stmtパース失敗。\")\"が不足しています。")
+            }
+        } else {
+            post = NewNodeNum(1)
+        }
+
+        var action *Node
+        if stmt, err := Stmt(state); err != nil {
+            return nil, err
+        } else {
+            action = stmt
+        }
+
+        return NewNode(NodeFor, NewNode(NodeForFirst, pre, cond), NewNode(NodeForSecond, post, action)), nil
     }
 
     if token.Kind == TokenWhile {
