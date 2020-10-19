@@ -51,5 +51,6 @@ assert 0 'if(0)2;'
 assert 2 'if(1)2;'
 assert 4 'a = 1; b = 2; if(a < b) 4; else 5;'
 assert 5 'a = 10; b = 2; if(a < b) 4; else 5;'
+assert 3 'a = 1; if(1) a = 2; b = 9; if(0 == 0) b = 1; a + b;'
 
 echo OK
