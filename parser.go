@@ -393,6 +393,9 @@ func Stmt(state *ParserState) (*Node, error) {
             } else {
                 pre = expr
             }
+            if !ConsumeOp(state, ";") {
+                return nil, errors.New("for文パース失敗。\";\"が不足しています。")
+            }
         } else {
             pre = NewNodeNum(1)
         }
@@ -403,6 +406,9 @@ func Stmt(state *ParserState) (*Node, error) {
                 return nil, err
             } else {
                 cond = expr
+            }
+            if !ConsumeOp(state, ";") {
+                return nil, errors.New("for文パース失敗。\";\"が不足しています。")
             }
         } else {
             cond = NewNodeNum(1)
@@ -416,7 +422,7 @@ func Stmt(state *ParserState) (*Node, error) {
                 post = expr
             }
 
-            if ConsumeRightBracket(state) {
+            if !ConsumeRightBracket(state) {
                 return nil, errors.New("Stmtパース失敗。\")\"が不足しています。")
             }
         } else {

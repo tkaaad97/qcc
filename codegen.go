@@ -83,6 +83,25 @@ func Gen(node *Node, state *GenState) {
         }
         (*state).LabelCounter++
         return
+    case NodeFor:
+        label := (*state).LabelCounter
+        first := (*node).Lhs
+        second := (*node).Rhs
+        pre := (*first).Lhs
+        cond := (*first).Rhs
+        post := (*second).Lhs
+        action := (*second).Rhs
+        Gen(pre, state)
+        fmt.Printf(".Lstart%d:\n", label)
+        Gen(cond, state)
+        fmt.Printf("cmp rax, 0\n")
+        fmt.Printf("je .Lend%d\n", label)
+        Gen(action, state)
+        Gen(post, state)
+        fmt.Printf("jmp .Lstart%d\n", label)
+        fmt.Printf(".Lend%d:\n", label)
+        (*state).LabelCounter++
+        return
     case NodeWhile:
         label := (*state).LabelCounter
         fmt.Printf(".Lstart%d:\n", label)
