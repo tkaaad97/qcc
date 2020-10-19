@@ -16,6 +16,7 @@ const (
     TokenReturn
     TokenIf
     TokenElse
+    TokenWhile
     TokenEof
 )
 
@@ -45,6 +46,7 @@ const (
     NodeReturn
     NodeIf
     NodeEither
+    NodeWhile
 )
 
 type Node struct {

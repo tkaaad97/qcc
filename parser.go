@@ -18,7 +18,7 @@ func IsAlnum(a rune) bool {
 func IsIdent(str string) bool {
     for i, c := range([]rune(str)) {
         if i == 0 {
-            if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') {
+            if IsAlpha(c) {
                 continue
             }
         } else {
@@ -68,6 +68,8 @@ func Tokenize(input []rune) ([]Token, error) {
                 kind = TokenIf
             case "else":
                 kind = TokenElse
+            case "while":
+                kind = TokenWhile
             }
             token := Token {
                 Kind: kind,
@@ -374,6 +376,33 @@ func Stmt(state *ParserState) (*Node, error) {
         }
 
         return NewNode(NodeIf, cond, rhs), nil
+    }
+
+    if token.Kind == TokenWhile {
+        (*state).Offset++
+        if !ConsumeLeftBracket(state) {
+            return nil, fmt.Errorf("Stmtパース失敗 %v", *state)
+        }
+
+        var cond *Node
+        if expr, err := Expr(state); err != nil {
+            return nil, err
+        } else {
+            cond = expr
+        }
+
+        if !ConsumeRightBracket(state) {
+            return nil, errors.New("Stmtパース失敗。\")\"が不足しています。")
+        }
+
+        var rhs *Node
+        if stmt, err := Stmt(state); err != nil {
+            return nil, err
+        } else {
+            rhs = stmt
+        }
+
+        return NewNode(NodeWhile, cond, rhs), nil
     }
 
     var node *Node
