@@ -64,6 +64,20 @@ func Gen(node *Node, state *GenState) {
         fmt.Printf("  mov [rax], rdi\n")
         fmt.Printf("  mov rax, rdi\n")
         return
+    case NodeBlock:
+        if (*node).Lhs == nil {
+            return
+        }
+        Gen((*node).Lhs, state)
+        current := (*node).Rhs
+        for {
+            if current == nil {
+                return
+            }
+            Gen((*current).Lhs, state)
+            current = (*current).Rhs
+        }
+        return
     case NodeIf:
         Gen((*node).Lhs, state)
         fmt.Printf("  cmp rax, 0\n")
