@@ -165,7 +165,7 @@ func Tokenize(input []rune) ([]Token, error) {
 
         if input[off] == '(' {
             token := Token {
-                Kind: TokenLeftBracket,
+                Kind: TokenLeftParenthesis,
                 Str: "(",
                 Pos: off,
             }
@@ -176,8 +176,30 @@ func Tokenize(input []rune) ([]Token, error) {
 
         if input[off] == ')' {
             token := Token {
-                Kind: TokenRightBracket,
+                Kind: TokenRightParenthesis,
                 Str: ")",
+                Pos: off,
+            }
+            tokens = append(tokens, token)
+            off++
+            continue
+        }
+
+        if input[off] == '{' {
+            token := Token {
+                Kind: TokenLeftBrace,
+                Str: "{",
+                Pos: off,
+            }
+            tokens = append(tokens, token)
+            off++
+            continue
+        }
+
+        if input[off] == '}' {
+            token := Token {
+                Kind: TokenRightBrace,
+                Str: "}",
                 Pos: off,
             }
             tokens = append(tokens, token)
@@ -247,12 +269,20 @@ func ConsumeTokenKind(state *ParserState, kind TokenKind) bool {
     return false
 }
 
-func ConsumeLeftBracket(state *ParserState) bool {
-    return ConsumeTokenKind(state, TokenLeftBracket)
+func ConsumeLeftParenthesis(state *ParserState) bool {
+    return ConsumeTokenKind(state, TokenLeftParenthesis)
 }
 
-func ConsumeRightBracket(state *ParserState) bool {
-    return ConsumeTokenKind(state, TokenRightBracket)
+func ConsumeRightParenthesis(state *ParserState) bool {
+    return ConsumeTokenKind(state, TokenRightParenthesis)
+}
+
+func ConsumeLeftBrace(state *ParserState) bool {
+    return ConsumeTokenKind(state, TokenLeftBrace)
+}
+
+func ConsumeRightBrace(state *ParserState) bool {
+    return ConsumeTokenKind(state, TokenRightBrace)
 }
 
 func ConsumeElse(state *ParserState) bool {
@@ -318,6 +348,20 @@ func NewNodeLVar(state *ParserState, name string) *Node {
     return p
 }
 
+func NewNodeBlock(nodes []*Node) *Node {
+    node := NewNode(NodeBlock, nil, nil)
+    current := node
+    for i, a := range(nodes) {
+        if i == 0 {
+            (*current).Lhs = a
+        } else {
+            (*current).Rhs = NewNode(NodeBlockChild, a, nil)
+            current = (*current).Rhs
+        }
+    }
+    return node
+}
+
 func Program(state *ParserState) ([]*Node, error) {
     nodes := make([]*Node, 0, 10)
     for {
@@ -341,13 +385,30 @@ func Stmt(state *ParserState) (*Node, error) {
     }
 
     token := (*state).Tokens[(*state).Offset]
+    if token.Kind == TokenLeftBrace {
+        (*state).Offset++
+        nodes := []*Node{}
+        for {
+            if !ConsumeRightBrace(state) {
+                if stmt, err := Stmt(state); err != nil {
+                    return nil, err
+                } else {
+                    nodes = append(nodes, stmt)
+                }
+            } else {
+                break
+            }
+        }
+        return NewNodeBlock(nodes), nil
+    }
+
     if token.Kind == TokenReturn {
         return Return(state)
     }
 
     if token.Kind == TokenIf {
         (*state).Offset++
-        if !ConsumeLeftBracket(state) {
+        if !ConsumeLeftParenthesis(state) {
             return nil, fmt.Errorf("Stmtパース失敗 %v", *state)
         }
 
@@ -358,7 +419,7 @@ func Stmt(state *ParserState) (*Node, error) {
             cond = expr
         }
 
-        if !ConsumeRightBracket(state) {
+        if !ConsumeRightParenthesis(state) {
             return nil, errors.New("Stmtパース失敗。\")\"が不足しています。")
         }
 
@@ -382,7 +443,7 @@ func Stmt(state *ParserState) (*Node, error) {
 
     if token.Kind == TokenFor {
         (*state).Offset++
-        if !ConsumeLeftBracket(state) {
+        if !ConsumeLeftParenthesis(state) {
             return nil, fmt.Errorf("Stmtパース失敗 %v", *state)
         }
 
@@ -415,14 +476,14 @@ func Stmt(state *ParserState) (*Node, error) {
         }
 
         var post *Node
-        if !ConsumeRightBracket(state) {
+        if !ConsumeRightParenthesis(state) {
             if expr, err := Expr(state); err != nil {
                 return nil, err
             } else {
                 post = expr
             }
 
-            if !ConsumeRightBracket(state) {
+            if !ConsumeRightParenthesis(state) {
                 return nil, errors.New("Stmtパース失敗。\")\"が不足しています。")
             }
         } else {
@@ -441,7 +502,7 @@ func Stmt(state *ParserState) (*Node, error) {
 
     if token.Kind == TokenWhile {
         (*state).Offset++
-        if !ConsumeLeftBracket(state) {
+        if !ConsumeLeftParenthesis(state) {
             return nil, fmt.Errorf("Stmtパース失敗 %v", *state)
         }
 
@@ -452,7 +513,7 @@ func Stmt(state *ParserState) (*Node, error) {
             cond = expr
         }
 
-        if !ConsumeRightBracket(state) {
+        if !ConsumeRightParenthesis(state) {
             return nil, errors.New("Stmtパース失敗。\")\"が不足しています。")
         }
 
@@ -509,11 +570,11 @@ func Primary(state *ParserState) (*Node, error) {
         return NewNodeLVar(state, ident), nil
     }
 
-    if ConsumeLeftBracket(state) {
+    if ConsumeLeftParenthesis(state) {
         if n, err := Expr(state); err != nil {
             return nil, err
         } else {
-            if ConsumeRightBracket(state) {
+            if ConsumeRightParenthesis(state) {
                 return n, nil
             } else {
                 return nil, errors.New("右括弧が不足しています")

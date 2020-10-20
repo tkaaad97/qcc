@@ -9,8 +9,10 @@ type TokenKind int
 
 const (
     TokenReserved TokenKind = iota
-    TokenLeftBracket
-    TokenRightBracket
+    TokenLeftParenthesis
+    TokenRightParenthesis
+    TokenLeftBrace
+    TokenRightBrace
     TokenNum
     TokenIdent
     TokenReturn
@@ -51,6 +53,8 @@ const (
     NodeForFirst
     NodeForSecond
     NodeWhile
+    NodeBlock
+    NodeBlockChild
 )
 
 type Node struct {
