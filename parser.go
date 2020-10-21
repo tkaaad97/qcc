@@ -326,7 +326,7 @@ func ConsumeIdent(state *ParserState) (string, bool) {
 }
 
 func NewNode(kind NodeKind, lhs *Node, rhs *Node) *Node {
-    node := Node { kind, lhs, rhs, 0, 0 }
+    node := Node { kind, lhs, rhs, 0, 0, "" }
     return &node
 }
 
@@ -359,6 +359,12 @@ func NewNodeBlock(nodes []*Node) *Node {
             current = (*current).Rhs
         }
     }
+    return node
+}
+
+func NewNodeFuncCall(name string) *Node {
+    node := NewNode(NodeFuncCall, nil, nil)
+    (*node).Ident = name
     return node
 }
 
@@ -567,6 +573,13 @@ func Primary(state *ParserState) (*Node, error) {
     }
 
     if ident, consumed := ConsumeIdent(state); consumed {
+        if ConsumeLeftParenthesis(state) {
+            if ConsumeRightParenthesis(state) {
+                return NewNodeFuncCall(ident), nil
+            } else {
+                return nil, errors.New("関数呼び出しの右括弧が不足しています")
+            }
+        }
         return NewNodeLVar(state, ident), nil
     }
 

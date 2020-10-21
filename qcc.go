@@ -55,6 +55,7 @@ const (
     NodeWhile
     NodeBlock
     NodeBlockChild
+    NodeFuncCall
 )
 
 type Node struct {
@@ -63,6 +64,7 @@ type Node struct {
     Rhs *Node
     Val int
     Offset int
+    Ident string
 }
 
 type ParserState struct {

@@ -127,6 +127,10 @@ func Gen(node *Node, state *GenState) {
         fmt.Printf(".Lend%d:\n", label)
         (*state).LabelCounter++
         return
+    case NodeFuncCall:
+        funcName := (*node).Ident
+        fmt.Printf("call %s\n", funcName)
+        return
     }
 
     Gen((*node).Lhs, state)
