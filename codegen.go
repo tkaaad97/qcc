@@ -142,7 +142,6 @@ func Gen(node *Node, state *GenState) {
             argNum++
         }
         fmt.Printf("  call %s\n", funcName)
-        fmt.Printf("  add rsp, %d\n", argNum * 8)
         return
     }
 
