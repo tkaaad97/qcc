@@ -37,6 +37,7 @@ mkdir -p tmp
 
 echo '#include <stdio.h>
 int foo() { printf("OK\n"); }
+int add(int a, int b) { return a + b; }
 ' > tmp/external.c
 cc -c -o tmp/external.o tmp/external.c
 
@@ -79,5 +80,7 @@ assert 2 'a = 0; { a = a + 1; a = a + 1; return a; }'
 assert 42 'if(1){} return 42;'
 assert 50 'a = b = 0; while(a < 10){ a = a + 1; b = b + 5; } return b;'
 assertStdout "OK" 'foo();'
+assert 2 'return add(1,1);'
+assert 7 'a = 1; b = 2; add(a, b) + 4;'
 
 echo OK

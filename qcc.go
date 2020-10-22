@@ -20,6 +20,7 @@ const (
     TokenElse
     TokenFor
     TokenWhile
+    TokenComma
     TokenEof
 )
 
@@ -56,6 +57,7 @@ const (
     NodeBlock
     NodeBlockChild
     NodeFuncCall
+    NodeFuncArg
 )
 
 type Node struct {

@@ -93,6 +93,17 @@ func Tokenize(input []rune) ([]Token, error) {
             continue
         }
 
+        if (input[off] == ',') {
+            token := Token {
+                Kind: TokenComma,
+                Str: ",",
+                Pos: off,
+            }
+            tokens = append(tokens, token)
+            off++
+            continue
+        }
+
         if (input[off] == '=') {
             s := "="
             if (off + 1 < l && input[off + 1] == '=') {
@@ -289,6 +300,10 @@ func ConsumeElse(state *ParserState) bool {
     return ConsumeTokenKind(state, TokenElse)
 }
 
+func ConsumeComma(state *ParserState) bool {
+    return ConsumeTokenKind(state, TokenComma)
+}
+
 func ConsumeOp(state *ParserState, op string) bool {
     if (*state).Offset >= len((*state).Tokens) {
         return false
@@ -362,9 +377,22 @@ func NewNodeBlock(nodes []*Node) *Node {
     return node
 }
 
-func NewNodeFuncCall(name string) *Node {
+func NewNodeFuncCall(name string, args []*Node) *Node {
     node := NewNode(NodeFuncCall, nil, nil)
     (*node).Ident = name
+    current := node
+    if len(args) > 6 {
+        args = args[:6]
+    }
+    for i, arg := range(args) {
+        if i == 0 {
+            (*current).Lhs = NewNode(NodeFuncArg, arg, nil)
+            current = (*current).Lhs
+        } else {
+            (*current).Rhs = NewNode(NodeFuncArg, arg, nil)
+            current = (*current).Rhs
+        }
+    }
     return node
 }
 
@@ -574,10 +602,21 @@ func Primary(state *ParserState) (*Node, error) {
 
     if ident, consumed := ConsumeIdent(state); consumed {
         if ConsumeLeftParenthesis(state) {
+            args := []*Node{}
             if ConsumeRightParenthesis(state) {
-                return NewNodeFuncCall(ident), nil
-            } else {
-                return nil, errors.New("関数呼び出しの右括弧が不足しています")
+                return NewNodeFuncCall(ident, args), nil
+            }
+            for {
+                if expr, err := Expr(state); err != nil {
+                    return nil, err
+                } else {
+                    args = append(args, expr)
+                    if ConsumeRightParenthesis(state) {
+                        return NewNodeFuncCall(ident, args), nil
+                    } else if !ConsumeComma(state) {
+                        return nil, errors.New("関数呼び出し引数の後にカンマがありません")
+                    }
+                }
             }
         }
         return NewNodeLVar(state, ident), nil

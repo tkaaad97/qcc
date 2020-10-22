@@ -129,7 +129,20 @@ func Gen(node *Node, state *GenState) {
         return
     case NodeFuncCall:
         funcName := (*node).Ident
-        fmt.Printf("call %s\n", funcName)
+        arg := (*node).Lhs
+        argNum := 0
+        argRegisters := []string{ "rdi", "rsi", "rdx", "rcx", "r8", "r9", }
+        for {
+            if arg == nil {
+                break
+            }
+            Gen((*arg).Lhs, state)
+            fmt.Printf("  mov %s, rax\n", argRegisters[argNum])
+            arg = (*arg).Rhs
+            argNum++
+        }
+        fmt.Printf("  call %s\n", funcName)
+        fmt.Printf("  add rsp, %d\n", argNum * 8)
         return
     }
 
