@@ -59,6 +59,8 @@ const (
     NodeFuncCall
     NodeFuncArg
     NodeFuncDef
+    NodeAddr
+    NodeDeref
 )
 
 type Node struct {

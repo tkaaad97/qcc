@@ -82,5 +82,6 @@ assertExpr 50 'a = b = 0; while(a < 10){ a = a + 1; b = b + 5; } return b;'
 assertStdout "OK" 'main(){foo();}'
 assertExpr 2 'return add(1,1);'
 assertExpr 7 'a = 1; b = 2; add(a, b) + 4;'
+assertExpr 4 'a = 0; b = &a; *b = 3; a + 1;'
 
 echo OK

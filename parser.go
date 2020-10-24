@@ -104,6 +104,17 @@ func Tokenize(input []rune) ([]Token, error) {
             continue
         }
 
+        if (input[off] == '&') {
+            token := Token {
+                Kind: TokenReserved,
+                Str: "&",
+                Pos: off,
+            }
+            tokens = append(tokens, token)
+            off++
+            continue
+        }
+
         if (input[off] == '=') {
             s := "="
             if (off + 1 < l && input[off + 1] == '=') {
@@ -699,8 +710,19 @@ func Unary(state *ParserState) (*Node, error) {
         } else {
             return NewNode(NodeSub, NewNodeNum(0), a), nil
         }
+    } else if ConsumeOp(state, "&") {
+        if a, err := Primary(state); err != nil {
+            return nil, err
+        } else {
+            return NewNode(NodeAddr, a, nil), nil
+        }
+    } else if ConsumeOp(state, "*") {
+        if a, err := Primary(state); err != nil {
+            return nil, err
+        } else {
+            return NewNode(NodeDeref, a, nil), nil
+        }
     }
-
     return Primary(state)
 }
 

@@ -58,14 +58,16 @@ func GenDef(node *Node, localsLen int, state *GenState) {
     fmt.Printf("  ret\n")
 }
 
-func GenLVarAddress(node *Node) {
-    if (*node).Kind != NodeLVar {
-        fmt.Fprintf(os.Stderr, "代入の左辺値が変数ではありません。\n")
+func GenLVarAddress(node *Node, state *GenState) {
+    if (*node).Kind == NodeLVar {
+        fmt.Printf("  mov rax, rbp\n")
+        fmt.Printf("  sub rax, %d\n", (*node).Offset)
+    } else if (*node).Kind == NodeDeref {
+        Gen((*node).Lhs, state)
+    } else {
+        fmt.Fprintf(os.Stderr, "代入の左辺値が変数ではありません。\n",)
         os.Exit(1)
     }
-
-    fmt.Printf("  mov rax, rbp\n")
-    fmt.Printf("  sub rax, %d\n", (*node).Offset)
 }
 
 func Gen(node *Node, state *GenState) {
@@ -80,17 +82,24 @@ func Gen(node *Node, state *GenState) {
         fmt.Printf("  mov rax, %d\n", (*node).Val)
         return
     case NodeLVar:
-        GenLVarAddress(node)
+        GenLVarAddress(node, state)
         fmt.Printf("  mov rax, [rax]\n")
         return
     case NodeAssign:
-        GenLVarAddress((*node).Lhs)
+        GenLVarAddress((*node).Lhs, state)
         fmt.Printf("  push rax\n")
         Gen((*node).Rhs, state)
         fmt.Printf("  mov rdi, rax\n")
         fmt.Printf("  pop rax\n")
         fmt.Printf("  mov [rax], rdi\n")
         fmt.Printf("  mov rax, rdi\n")
+        return
+    case NodeAddr:
+        GenLVarAddress((*node).Lhs, state)
+        return
+    case NodeDeref:
+        GenLVarAddress((*node).Lhs, state)
+        fmt.Printf("  mov rax, [rax]\n")
         return
     case NodeBlock:
         if (*node).Lhs == nil {
