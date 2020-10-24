@@ -396,9 +396,14 @@ func NewNodeFuncCall(name string, args []*Node) *Node {
     return node
 }
 
-func NewNodeFuncDef(funcName string, block *Node) *Node {
-    node := NewNode(NodeFuncDef, block, nil)
+func NewNodeFuncDef(funcName string, params []*Node, block *Node) *Node {
+    node := NewNode(NodeFuncDef, nil, block)
     (*node).Ident = funcName
+    current := node
+    for _, param := range(params) {
+        (*current).Lhs = param
+        current = param
+    }
     return node
 }
 
@@ -426,11 +431,13 @@ func FuncDef(state *ParserState) (*Node, error) {
         if !ConsumeLeftParenthesis(state) {
             return nil, errors.New("関数定義パース失敗")
         }
+        paramNodes := []*Node{}
         if !ConsumeRightParenthesis(state) {
             for {
                 if paramName, consumed := ConsumeIdent(state); consumed {
                     // 引数はローカル変数と同じように扱う
-                    NewNodeLVar(state, paramName)
+                    paramNode := NewNodeLVar(state, paramName)
+                    paramNodes = append(paramNodes, paramNode)
                     if ConsumeRightParenthesis(state) {
                         break
                     } else if !ConsumeComma(state) {
@@ -445,7 +452,7 @@ func FuncDef(state *ParserState) (*Node, error) {
         if block, err := Block(state); err != nil {
             return nil, err
         } else {
-            return NewNodeFuncDef(funcName, block), nil
+            return NewNodeFuncDef(funcName, paramNodes, block), nil
         }
     } else {
         return nil, errors.New("関数定義パース失敗")

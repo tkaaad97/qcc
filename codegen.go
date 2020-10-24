@@ -19,6 +19,21 @@ func GenProgram(defs []NodeAndLocals) {
     }
 }
 
+func GenParams(node *Node) {
+    registers := []string{ "rdi", "rsi", "rdx", "rcx", "r8", "r9", }
+    i := 0
+    for {
+        if node == nil {
+            break
+        }
+        fmt.Printf("  mov rax, rbp\n")
+        fmt.Printf("  sub rax, %d\n", (*node).Offset)
+        fmt.Printf("  mov [rax], %s\n", registers[i])
+        i++
+        node = (*node).Lhs
+    }
+}
+
 func GenDef(node *Node, localsLen int, state *GenState) {
     if (node == nil || (*node).Kind != NodeFuncDef) {
         fmt.Fprintf(os.Stderr, "関数定義のノードではありません\n")
@@ -32,7 +47,10 @@ func GenDef(node *Node, localsLen int, state *GenState) {
     fmt.Printf("  mov rbp, rsp\n")
     fmt.Printf("  sub rsp, %d\n", localsLen * 8)
 
-    Gen((*node).Lhs, state)
+    // 引数をレジスタからスタックに移動
+    GenParams((*node).Lhs)
+
+    Gen((*node).Rhs, state)
 
     // エピローグ
     fmt.Printf("  mov rsp, rbp\n")
