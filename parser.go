@@ -352,14 +352,14 @@ func NewNodeNum(val int) *Node {
 }
 
 func NewNodeLVar(state *ParserState, name string) *Node {
-    locals := *(*state).Locals
-    if n, ok := locals[name]; ok {
+    locals := &((*state).Locals)
+    if n, ok := (*locals)[name]; ok {
         return n
     }
-    o := (len(locals) + 1) * 8
+    o := (len(*locals) + 1) * 8
     p := NewNode(NodeLVar, nil, nil)
     (*p).Offset = o
-    locals[name] = p
+    (*locals)[name] = p
     return p
 }
 
@@ -396,31 +396,64 @@ func NewNodeFuncCall(name string, args []*Node) *Node {
     return node
 }
 
-func Program(state *ParserState) ([]*Node, error) {
-    nodes := make([]*Node, 0, 10)
+func NewNodeFuncDef(funcName string, block *Node) *Node {
+    node := NewNode(NodeFuncDef, block, nil)
+    (*node).Ident = funcName
+    return node
+}
+
+func Program(state *ParserState) ([]NodeAndLocals, error) {
+    defs := []NodeAndLocals{}
     for {
         if (*state).Offset >= len((*state).Tokens) {
             break
         }
 
-        if node, err := Stmt(state); err != nil {
-            return []*Node{}, err
+        if node, err := FuncDef(state); err != nil {
+            return []NodeAndLocals{}, err
         } else {
-            nodes = append(nodes, node)
+            def := NodeAndLocals { node, (*state).Locals }
+            defs = append(defs, def)
+            (*state).Locals = make(map[string]*Node)
         }
     }
 
-    return nodes, nil
+    return defs, nil
 }
 
-func Stmt(state *ParserState) (*Node, error) {
-    if (*state).Offset >= len((*state).Tokens) {
-        return nil, fmt.Errorf("Stmtパース失敗 %v", *state)
-    }
+func FuncDef(state *ParserState) (*Node, error) {
+    if funcName, consumed := ConsumeIdent(state); consumed {
+        if !ConsumeLeftParenthesis(state) {
+            return nil, errors.New("関数定義パース失敗")
+        }
+        if !ConsumeRightParenthesis(state) {
+            for {
+                if paramName, consumed := ConsumeIdent(state); consumed {
+                    // 引数はローカル変数と同じように扱う
+                    NewNodeLVar(state, paramName)
+                    if ConsumeRightParenthesis(state) {
+                        break
+                    } else if !ConsumeComma(state) {
+                        return nil, errors.New("関数定義仮引数の後にカンマがありません")
+                    }
+                } else {
+                    return nil, errors.New("関数定義仮引数パース失敗")
+                }
+            }
+        }
 
-    token := (*state).Tokens[(*state).Offset]
-    if token.Kind == TokenLeftBrace {
-        (*state).Offset++
+        if block, err := Block(state); err != nil {
+            return nil, err
+        } else {
+            return NewNodeFuncDef(funcName, block), nil
+        }
+    } else {
+        return nil, errors.New("関数定義パース失敗")
+    }
+}
+
+func Block(state *ParserState) (*Node, error) {
+    if ConsumeLeftBrace(state) {
         nodes := []*Node{}
         for {
             if !ConsumeRightBrace(state) {
@@ -434,6 +467,19 @@ func Stmt(state *ParserState) (*Node, error) {
             }
         }
         return NewNodeBlock(nodes), nil
+    } else {
+        return nil, errors.New("ブロックパース失敗。\"{\"がありません。")
+    }
+}
+
+func Stmt(state *ParserState) (*Node, error) {
+    if (*state).Offset >= len((*state).Tokens) {
+        return nil, fmt.Errorf("Stmtパース失敗 %v", *state)
+    }
+
+    token := (*state).Tokens[(*state).Offset]
+    if token.Kind == TokenLeftBrace {
+        return Block(state)
     }
 
     if token.Kind == TokenReturn {

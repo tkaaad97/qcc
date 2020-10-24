@@ -58,6 +58,7 @@ const (
     NodeBlockChild
     NodeFuncCall
     NodeFuncArg
+    NodeFuncDef
 )
 
 type Node struct {
@@ -72,7 +73,12 @@ type Node struct {
 type ParserState struct {
     Tokens []Token
     Offset int
-    Locals *map[string]*Node
+    Locals map[string]*Node
+}
+
+type NodeAndLocals struct {
+    Node *Node
+    Locals map[string]*Node
 }
 
 func PrintErrorAt(input string, pos int, err string) {

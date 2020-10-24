@@ -9,20 +9,30 @@ type GenState struct {
     LabelCounter int
 }
 
-func GenProgram(nodes []*Node, localsLen int) {
+func GenProgram(defs []NodeAndLocals) {
     fmt.Printf(".intel_syntax noprefix\n")
     fmt.Printf(".globl main\n")
-    fmt.Printf("main:\n")
+
+    state := GenState { 1 }
+    for _, def := range(defs) {
+        GenDef(def.Node, len(def.Locals), &state)
+    }
+}
+
+func GenDef(node *Node, localsLen int, state *GenState) {
+    if (node == nil || (*node).Kind != NodeFuncDef) {
+        fmt.Fprintf(os.Stderr, "関数定義のノードではありません\n")
+        os.Exit(1)
+    }
+
+    fmt.Printf("%s:\n", (*node).Ident)
 
     // プロローグ
     fmt.Printf("  push rbp\n")
     fmt.Printf("  mov rbp, rsp\n")
     fmt.Printf("  sub rsp, %d\n", localsLen * 8)
 
-    state := GenState { 1 }
-    for _, node := range(nodes) {
-        Gen(node, &state)
-    }
+    Gen((*node).Lhs, state)
 
     // エピローグ
     fmt.Printf("  mov rsp, rbp\n")
