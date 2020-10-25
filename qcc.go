@@ -21,6 +21,7 @@ const (
     TokenFor
     TokenWhile
     TokenComma
+    TokenInt
     TokenEof
 )
 
@@ -61,6 +62,7 @@ const (
     NodeFuncDef
     NodeAddr
     NodeDeref
+    NodeDecl
 )
 
 type Node struct {

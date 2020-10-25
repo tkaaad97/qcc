@@ -62,6 +62,8 @@ func Tokenize(input []rune) ([]Token, error) {
             }
             kind := TokenReserved
             switch (string(ident)) {
+            case "int":
+                kind = TokenInt
             case "return":
                 kind = TokenReturn
             case "if":
@@ -351,6 +353,18 @@ func ConsumeIdent(state *ParserState) (string, bool) {
     return "", false
 }
 
+func ConsumeType(state *ParserState) (string, bool) {
+    if (*state).Offset >= len((*state).Tokens) {
+        return "", false
+    }
+    token := (*state).Tokens[(*state).Offset]
+    if token.Kind == TokenInt {
+        (*state).Offset++
+        return token.Str, true
+    }
+    return "", false
+}
+
 func NewNode(kind NodeKind, lhs *Node, rhs *Node) *Node {
     node := Node { kind, lhs, rhs, 0, 0, "" }
     return &node
@@ -362,16 +376,24 @@ func NewNodeNum(val int) *Node {
     return p
 }
 
-func NewNodeLVar(state *ParserState, name string) *Node {
+func NewNodeDecl(state *ParserState, name string) (*Node, error) {
     locals := &((*state).Locals)
-    if n, ok := (*locals)[name]; ok {
-        return n
+    if _, exists := (*locals)[name]; exists {
+        return nil, fmt.Errorf("変数名はすでに使われています。name: %s", name)
     }
     o := (len(*locals) + 1) * 8
     p := NewNode(NodeLVar, nil, nil)
     (*p).Offset = o
     (*locals)[name] = p
-    return p
+    return p, nil
+}
+
+func RefNodeLVar(state *ParserState, name string) (*Node, error) {
+    locals := &((*state).Locals)
+    if n, ok := (*locals)[name]; ok {
+        return n, nil
+    }
+    return nil, fmt.Errorf("変数が見つかりません。name: %s", name)
 }
 
 func NewNodeBlock(nodes []*Node) *Node {
@@ -438,6 +460,10 @@ func Program(state *ParserState) ([]NodeAndLocals, error) {
 }
 
 func FuncDef(state *ParserState) (*Node, error) {
+    if _, consumed := ConsumeType(state); !consumed {
+        return nil, errors.New("関数定義パース失敗。型がありません")
+    }
+
     if funcName, consumed := ConsumeIdent(state); consumed {
         if !ConsumeLeftParenthesis(state) {
             return nil, errors.New("関数定義パース失敗")
@@ -445,10 +471,17 @@ func FuncDef(state *ParserState) (*Node, error) {
         paramNodes := []*Node{}
         if !ConsumeRightParenthesis(state) {
             for {
+                if _, consumed := ConsumeType(state); !consumed {
+                    return nil, errors.New("関数定義パース失敗。型がありません")
+                }
+
                 if paramName, consumed := ConsumeIdent(state); consumed {
                     // 引数はローカル変数と同じように扱う
-                    paramNode := NewNodeLVar(state, paramName)
-                    paramNodes = append(paramNodes, paramNode)
+                    if paramNode, err := NewNodeDecl(state, paramName); err != nil {
+                        return nil, err
+                    } else {
+                        paramNodes = append(paramNodes, paramNode)
+                    }
                     if ConsumeRightParenthesis(state) {
                         break
                     } else if !ConsumeComma(state) {
@@ -625,6 +658,17 @@ func Stmt(state *ParserState) (*Node, error) {
         return NewNode(NodeWhile, cond, rhs), nil
     }
 
+    if _, consumed0 := ConsumeType(state); consumed0 {
+        if ident, consumed := ConsumeIdent(state); consumed {
+            if !ConsumeOp(state, ";") {
+                return nil, errors.New("Stmtパース失敗。\";\"が不足しています。")
+            }
+            return NewNodeDecl(state, ident)
+        } else {
+            return nil, errors.New("Stmtパース失敗。変数名がありません。")
+        }
+    }
+
     var node *Node
     if expr, err := Expr(state); err != nil {
         return nil, err
@@ -683,7 +727,7 @@ func Primary(state *ParserState) (*Node, error) {
                 }
             }
         }
-        return NewNodeLVar(state, ident), nil
+        return RefNodeLVar(state, ident)
     }
 
     if ConsumeLeftParenthesis(state) {
