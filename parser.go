@@ -366,7 +366,7 @@ func ConsumeType(state *ParserState) (string, bool) {
 }
 
 func NewNode(kind NodeKind, lhs *Node, rhs *Node) *Node {
-    node := Node { kind, lhs, rhs, 0, 0, "" }
+    node := Node { kind, lhs, rhs, 0, 0, "", nil }
     return &node
 }
 

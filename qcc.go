@@ -72,6 +72,7 @@ type Node struct {
     Val int
     Offset int
     Ident string
+    Type *CType
 }
 
 type ParserState struct {
@@ -83,6 +84,18 @@ type ParserState struct {
 type NodeAndLocals struct {
     Node *Node
     Locals map[string]*Node
+}
+
+type CTypeKind int
+
+const (
+    CTypeInt CTypeKind = iota
+    CTypePointer
+)
+
+type CType struct {
+    Kind CTypeKind
+    PointerTo *CType
 }
 
 func PrintErrorAt(input string, pos int, err string) {
