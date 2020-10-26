@@ -104,3 +104,13 @@ func PrintErrorAt(input string, pos int, err string) {
     fmt.Fprintf(os.Stderr, format, "")
     fmt.Fprintf(os.Stderr, "^ %s\n", err)
 }
+
+func Int() *CType {
+    a := CType { CTypeInt, nil }
+    return &a
+}
+
+func ToPointer(base *CType) *CType {
+    a := CType { CTypePointer, base }
+    return &a
+}

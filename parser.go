@@ -60,7 +60,7 @@ func Tokenize(input []rune) ([]Token, error) {
                 ident = append(ident, input[off])
                 off++
             }
-            kind := TokenReserved
+            kind := TokenIdent
             switch (string(ident)) {
             case "int":
                 kind = TokenInt
@@ -346,23 +346,23 @@ func ConsumeIdent(state *ParserState) (string, bool) {
         return "", false
     }
     token := (*state).Tokens[(*state).Offset]
-    if token.Kind == TokenReserved && IsIdent(token.Str) {
+    if token.Kind == TokenIdent && IsIdent(token.Str) {
         (*state).Offset++
         return token.Str, true
     }
     return "", false
 }
 
-func ConsumeType(state *ParserState) (string, bool) {
+func ConsumeType(state *ParserState) (*CType, bool) {
     if (*state).Offset >= len((*state).Tokens) {
-        return "", false
+        return nil, false
     }
     token := (*state).Tokens[(*state).Offset]
     if token.Kind == TokenInt {
         (*state).Offset++
-        return token.Str, true
+        return Int(), true
     }
-    return "", false
+    return nil, false
 }
 
 func NewNode(kind NodeKind, lhs *Node, rhs *Node) *Node {
@@ -376,7 +376,7 @@ func NewNodeNum(val int) *Node {
     return p
 }
 
-func NewNodeDecl(state *ParserState, name string) (*Node, error) {
+func NewNodeDecl(state *ParserState, name string, t *CType) (*Node, error) {
     locals := &((*state).Locals)
     if _, exists := (*locals)[name]; exists {
         return nil, fmt.Errorf("変数名はすでに使われています。name: %s", name)
@@ -384,6 +384,7 @@ func NewNodeDecl(state *ParserState, name string) (*Node, error) {
     o := (len(*locals) + 1) * 8
     p := NewNode(NodeLVar, nil, nil)
     (*p).Offset = o
+    (*p).Type = t
     (*locals)[name] = p
     return p, nil
 }
@@ -471,13 +472,18 @@ func FuncDef(state *ParserState) (*Node, error) {
         paramNodes := []*Node{}
         if !ConsumeRightParenthesis(state) {
             for {
-                if _, consumed := ConsumeType(state); !consumed {
+                var baseType *CType
+                if t, consumed := ConsumeType(state); !consumed {
                     return nil, errors.New("関数定義パース失敗。型がありません")
+                } else {
+                    baseType = t
                 }
 
-                if paramName, consumed := ConsumeIdent(state); consumed {
+                if paramName, t, err := Decl(state, baseType); err != nil {
+                    return nil, errors.New("関数定義仮引数パース失敗")
+                } else {
                     // 引数はローカル変数と同じように扱う
-                    if paramNode, err := NewNodeDecl(state, paramName); err != nil {
+                    if paramNode, err := NewNodeDecl(state, paramName, t); err != nil {
                         return nil, err
                     } else {
                         paramNodes = append(paramNodes, paramNode)
@@ -487,8 +493,6 @@ func FuncDef(state *ParserState) (*Node, error) {
                     } else if !ConsumeComma(state) {
                         return nil, errors.New("関数定義仮引数の後にカンマがありません")
                     }
-                } else {
-                    return nil, errors.New("関数定義仮引数パース失敗")
                 }
             }
         }
@@ -501,6 +505,47 @@ func FuncDef(state *ParserState) (*Node, error) {
     } else {
         return nil, errors.New("関数定義パース失敗")
     }
+}
+
+func Decl(state *ParserState, baseType *CType) (string, *CType, error) {
+    if (*state).Offset >= len((*state).Tokens) {
+        return "", nil, errors.New("Declパース失敗")
+    }
+
+    token := (*state).Tokens[(*state).Offset]
+    if token.Kind == TokenLeftParenthesis {
+        return DeclParenthesized(state, baseType);
+    } else if token.Kind == TokenReserved && token.Str == "*" {
+        return DeclPointerQualified(state, baseType);
+    } else if token.Kind == TokenIdent {
+        // TODO array and function pointer
+        (*state).Offset++
+        return token.Str, baseType, nil
+    } else {
+        return "", nil, fmt.Errorf("Declパース失敗 %v %v", token, *state)
+    }
+}
+
+func DeclParenthesized(state *ParserState, baseType *CType) (string, *CType, error) {
+    if ConsumeLeftParenthesis(state) {
+        if ident, t, err := Decl(state, baseType); err != nil {
+            return "", nil, err
+        } else {
+            if ConsumeRightParenthesis(state) {
+                return ident, t, nil
+            } else {
+                return "", nil, errors.New("変数宣言で右括弧が不足しています。")
+            }
+        }
+    }
+    return "", nil, errors.New("変数宣言パース失敗")
+}
+
+func DeclPointerQualified(state *ParserState, baseType *CType) (string, *CType, error) {
+    if ConsumeOp(state, "*") {
+        return Decl(state, ToPointer(baseType))
+    }
+    return "", nil, errors.New("変数宣言パース失敗")
 }
 
 func Block(state *ParserState) (*Node, error) {
@@ -658,14 +703,14 @@ func Stmt(state *ParserState) (*Node, error) {
         return NewNode(NodeWhile, cond, rhs), nil
     }
 
-    if _, consumed0 := ConsumeType(state); consumed0 {
-        if ident, consumed := ConsumeIdent(state); consumed {
+    if baseType, consumed0 := ConsumeType(state); consumed0 {
+        if ident, t, err := Decl(state, baseType); err != nil {
+            return nil, err
+        } else {
             if !ConsumeOp(state, ";") {
                 return nil, errors.New("Stmtパース失敗。\";\"が不足しています。")
             }
-            return NewNodeDecl(state, ident)
-        } else {
-            return nil, errors.New("Stmtパース失敗。変数名がありません。")
+            return NewNodeDecl(state, ident, t)
         }
     }
 
