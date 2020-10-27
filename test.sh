@@ -1,5 +1,21 @@
 #!/bin/bash
 
+assertProgram() {
+  expected="$1"
+  input="$2"
+
+  ./qcc "${input}" > tmp/test.s
+  cc -o tmp/test tmp/test.s tmp/external.o
+  ./tmp/test
+  actual="$?"
+
+  if [ "$actual" = "$expected" ]; then
+    echo "$input => $actual"
+  else
+    echo "$input => $expected expected, but got $actual"
+    exit 1
+  fi
+}
 assertExpr() {
   expected="$1"
   input="$2"
@@ -36,8 +52,16 @@ assertStdout() {
 mkdir -p tmp
 
 echo '#include <stdio.h>
+#include<stdlib.h>
 int foo() { printf("OK\n"); }
 int add(int a, int b) { return a + b; }
+void alloc4(int **p, int a, int b, int c, int d) {
+    *p = (int*)malloc(32);
+    (*p)[0] = a;
+    (*p)[1] = b;
+    (*p)[2] = c;
+    (*p)[3] = d;
+}
 ' > tmp/external.c
 cc -c -o tmp/external.o tmp/external.c
 
@@ -83,5 +107,7 @@ assertStdout "OK" 'int main(){foo();}'
 assertExpr 2 'return add(1,1);'
 assertExpr 7 'int a; int b; a = 1; b = 2; add(a, b) + 4;'
 assertExpr 4 'int a; int* b; a = 0; b = &a; *b = 3; a + 1;'
+assertExpr 4 'int *p; alloc4(&p, 1, 2, 4, 8); *(p + 2);'
+assertExpr 8 'int *p; alloc4(&p, 1, 2, 4, 8); int *q; q = p + 3; return *q;'
 
 echo OK

@@ -98,7 +98,7 @@ func Gen(node *Node, state *GenState) {
         GenLVarAddress((*node).Lhs, state)
         return
     case NodeDeref:
-        GenLVarAddress((*node).Lhs, state)
+        Gen((*node).Lhs, state)
         fmt.Printf("  mov rax, [rax]\n")
         return
     case NodeBlock:
@@ -182,17 +182,27 @@ func Gen(node *Node, state *GenState) {
         return
     }
 
-    Gen((*node).Lhs, state)
+    lhs := (*node).Lhs
+    rhs := (*node).Rhs
+    Gen(lhs, state)
     fmt.Printf("  push rax\n")
-    Gen((*node).Rhs, state)
+    Gen(rhs, state)
 
     fmt.Printf("  mov rdi, rax\n")
     fmt.Printf("  pop rax\n")
 
     switch((*node).Kind) {
     case NodeAdd:
+        if (lhs.Type != nil && (*lhs.Type).Kind == CTypePointer) {
+            size := SizeOf((*lhs.Type).PointerTo)
+            fmt.Printf("  imul rdi, %d\n", size)
+        }
         fmt.Printf("  add rax, rdi\n")
     case NodeSub:
+        if (lhs.Type != nil && (*lhs.Type).Kind == CTypePointer) {
+            size := SizeOf((*lhs.Type).PointerTo)
+            fmt.Printf("  imul rdi, %d\n", size)
+        }
         fmt.Printf("  sub rax, rdi\n")
     case NodeMul:
         fmt.Printf("  imul rax, rdi\n")

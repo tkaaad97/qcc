@@ -114,3 +114,11 @@ func ToPointer(base *CType) *CType {
     a := CType { CTypePointer, base }
     return &a
 }
+
+func SizeOf(t *CType) int {
+    if (*t).Kind == CTypeInt {
+        return 4
+    } else {
+        return 8
+    }
+}
