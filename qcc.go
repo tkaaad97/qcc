@@ -22,6 +22,7 @@ const (
     TokenWhile
     TokenComma
     TokenInt
+    TokenSizeOf
     TokenEof
 )
 
@@ -79,6 +80,7 @@ type ParserState struct {
     Tokens []Token
     Offset int
     Locals map[string]*Node
+    Funcs map[string]*CType
 }
 
 type NodeAndLocals struct {
@@ -110,7 +112,7 @@ func Int() *CType {
     return &a
 }
 
-func ToPointer(base *CType) *CType {
+func PointerTo(base *CType) *CType {
     a := CType { CTypePointer, base }
     return &a
 }
@@ -121,4 +123,16 @@ func SizeOf(t *CType) int {
     } else {
         return 8
     }
+}
+
+func DerefType(t *CType) (*CType, bool) {
+    if t == nil {
+        return nil, false
+    }
+
+    if (*t).Kind != CTypePointer {
+        return nil, false
+    }
+
+    return (*t).PointerTo, true
 }

@@ -74,6 +74,8 @@ func Tokenize(input []rune) ([]Token, error) {
                 kind = TokenFor
             case "while":
                 kind = TokenWhile
+            case "sizeof":
+                kind = TokenSizeOf
             }
             token := Token {
                 Kind: kind,
@@ -353,6 +355,18 @@ func ConsumeIdent(state *ParserState) (string, bool) {
     return "", false
 }
 
+func ConsumeSizeOf(state *ParserState) bool {
+    if (*state).Offset >= len((*state).Tokens) {
+        return false
+    }
+    token := (*state).Tokens[(*state).Offset]
+    if token.Kind == TokenSizeOf {
+        (*state).Offset++
+        return true
+    }
+    return false
+}
+
 func ConsumeType(state *ParserState) (*CType, bool) {
     if (*state).Offset >= len((*state).Tokens) {
         return nil, false
@@ -373,6 +387,7 @@ func NewNode(kind NodeKind, lhs *Node, rhs *Node) *Node {
 func NewNodeNum(val int) *Node {
     p := NewNode(NodeNum, nil, nil)
     (*p).Val = val
+    p.Type = Int();
     return p
 }
 
@@ -411,7 +426,7 @@ func NewNodeBlock(nodes []*Node) *Node {
     return node
 }
 
-func NewNodeFuncCall(name string, args []*Node) *Node {
+func NewNodeFuncCall(state* ParserState, name string, args []*Node) *Node {
     node := NewNode(NodeFuncCall, nil, nil)
     (*node).Ident = name
     current := node
@@ -427,16 +442,41 @@ func NewNodeFuncCall(name string, args []*Node) *Node {
             current = (*current).Rhs
         }
     }
+    funcs := (*state).Funcs
+    if t, exists := funcs[name]; exists {
+        // TODO extern宣言で外部の関数の型を拾えるようにする
+        (*node).Type = t
+    }
     return node
 }
 
-func NewNodeFuncDef(funcName string, params []*Node, block *Node) *Node {
+func NewNodeFuncDef(state* ParserState, funcName string, params []*Node, block *Node, returnType *CType) (*Node, error) {
+    funcs := &((*state).Funcs)
+    if _, exists := (*funcs)[funcName]; exists {
+        return nil, fmt.Errorf("関数名が重複しています name: %s", funcName)
+    }
     node := NewNode(NodeFuncDef, nil, block)
     (*node).Ident = funcName
+    (*node).Type = returnType
     current := node
     for _, param := range(params) {
         (*current).Lhs = param
         current = param
+    }
+    (*funcs)[funcName] = returnType
+    return node, nil
+}
+
+func NewNodeAddr(a *Node) *Node {
+    node := NewNode(NodeAddr, a, nil)
+    (*node).Type = PointerTo((*a).Type)
+    return node
+}
+
+func NewNodeDeref(a *Node) *Node {
+    node := NewNode(NodeDeref, a, nil)
+    if t, ok := DerefType((*a).Type); ok {
+        (*node).Type = t
     }
     return node
 }
@@ -461,8 +501,11 @@ func Program(state *ParserState) ([]NodeAndLocals, error) {
 }
 
 func FuncDef(state *ParserState) (*Node, error) {
-    if _, consumed := ConsumeType(state); !consumed {
+    var returnType *CType
+    if t, consumed := ConsumeType(state); !consumed {
         return nil, errors.New("関数定義パース失敗。型がありません")
+    } else {
+        returnType = t
     }
 
     if funcName, consumed := ConsumeIdent(state); consumed {
@@ -500,7 +543,7 @@ func FuncDef(state *ParserState) (*Node, error) {
         if block, err := Block(state); err != nil {
             return nil, err
         } else {
-            return NewNodeFuncDef(funcName, paramNodes, block), nil
+            return NewNodeFuncDef(state, funcName, paramNodes, block, returnType)
         }
     } else {
         return nil, errors.New("関数定義パース失敗")
@@ -543,7 +586,7 @@ func DeclParenthesized(state *ParserState, baseType *CType) (string, *CType, err
 
 func DeclPointerQualified(state *ParserState, baseType *CType) (string, *CType, error) {
     if ConsumeOp(state, "*") {
-        return Decl(state, ToPointer(baseType))
+        return Decl(state, PointerTo(baseType))
     }
     return "", nil, errors.New("変数宣言パース失敗")
 }
@@ -739,7 +782,7 @@ func Return(state *ParserState) (*Node, error) {
     (*state).Offset++
 
     if e, err := Expr(state); err != nil {
-        return nil, errors.New("Returnパース失敗")
+        return nil, err
     } else {
         if !ConsumeOp(state, ";") {
             return nil, errors.New("Returnパース失敗")
@@ -757,7 +800,7 @@ func Primary(state *ParserState) (*Node, error) {
         if ConsumeLeftParenthesis(state) {
             args := []*Node{}
             if ConsumeRightParenthesis(state) {
-                return NewNodeFuncCall(ident, args), nil
+                return NewNodeFuncCall(state, ident, args), nil
             }
             for {
                 if expr, err := Expr(state); err != nil {
@@ -765,7 +808,7 @@ func Primary(state *ParserState) (*Node, error) {
                 } else {
                     args = append(args, expr)
                     if ConsumeRightParenthesis(state) {
-                        return NewNodeFuncCall(ident, args), nil
+                        return NewNodeFuncCall(state, ident, args), nil
                     } else if !ConsumeComma(state) {
                         return nil, errors.New("関数呼び出し引数の後にカンマがありません")
                     }
@@ -803,13 +846,24 @@ func Unary(state *ParserState) (*Node, error) {
         if a, err := Primary(state); err != nil {
             return nil, err
         } else {
-            return NewNode(NodeAddr, a, nil), nil
+            return NewNodeAddr(a), nil
         }
     } else if ConsumeOp(state, "*") {
         if a, err := Primary(state); err != nil {
             return nil, err
         } else {
-            return NewNode(NodeDeref, a, nil), nil
+            return NewNodeDeref(a), nil
+        }
+    } else if ConsumeSizeOf(state) {
+        if a, err := Unary(state); err != nil {
+            return nil, err
+        } else {
+            t := (*a).Type
+            if t == nil {
+                return nil, errors.New("sizeof引数の型が不明です")
+            } else {
+                return NewNodeNum(SizeOf(t)), nil
+            }
         }
     }
     return Primary(state)
@@ -817,10 +871,12 @@ func Unary(state *ParserState) (*Node, error) {
 
 func Mul(state *ParserState) (*Node, error) {
     var node *Node
+    var t *CType
     if lhs, err := Unary(state); err != nil {
         return nil, err
     } else {
         node = lhs
+        t = (*lhs).Type
     }
 
     for {
@@ -840,6 +896,7 @@ func Mul(state *ParserState) (*Node, error) {
             break
         }
     }
+    (*node).Type = t
     return node, nil
 }
 
@@ -849,10 +906,12 @@ func Expr(state *ParserState) (*Node, error) {
 
 func Add(state *ParserState) (*Node, error) {
     var node *Node
+    var t *CType
     if lhs, err := Mul(state); err != nil {
         return nil, err
     } else {
         node = lhs
+        t = (*lhs).Type
     }
 
     for {
@@ -872,15 +931,18 @@ func Add(state *ParserState) (*Node, error) {
             break
         }
     }
+    (*node).Type = t
     return node, nil
 }
 
 func Assign(state *ParserState) (*Node, error) {
     var node *Node
+    var t *CType
     if lhs, err := Equality(state); err != nil {
         return nil, err
     } else {
         node = lhs
+        t = (*lhs).Type
     }
 
     if ConsumeOp(state, "=") {
@@ -890,6 +952,7 @@ func Assign(state *ParserState) (*Node, error) {
             node = NewNode(NodeAssign, node, rhs)
         }
     }
+    (*node).Type = t
     return node, nil
 }
 
@@ -907,12 +970,16 @@ func Equality(state *ParserState) (*Node, error) {
                 return nil, err
             } else {
                 node = NewNode(NodeEq, node, rhs)
+                // TODO boolある?
+                (*node).Type = Int()
             }
         } else if ConsumeOp(state, "!=") {
             if rhs, err := Relational(state); err != nil {
                 return nil, err
             } else {
                 node = NewNode(NodeNeq, node, rhs)
+                // TODO boolある?
+                (*node).Type = Int()
             }
         } else {
             break
@@ -935,24 +1002,32 @@ func Relational(state *ParserState) (*Node, error) {
                 return nil, err
             } else {
                 node = NewNode(NodeLt, node, rhs)
+                // TODO boolある?
+                (*node).Type = Int()
             }
         } else if ConsumeOp(state, "<=") {
             if rhs, err := Add(state); err != nil {
                 return nil, err
             } else {
                 node = NewNode(NodeLe, node, rhs)
+                // TODO boolある?
+                (*node).Type = Int()
             }
         } else if ConsumeOp(state, ">") {
             if rhs, err := Add(state); err != nil {
                 return nil, err
             } else {
                 node = NewNode(NodeGt, node, rhs)
+                // TODO boolある?
+                (*node).Type = Int()
             }
         } else if ConsumeOp(state, ">=") {
             if rhs, err := Add(state); err != nil {
                 return nil, err
             } else {
                 node = NewNode(NodeGe, node, rhs)
+                // TODO boolある?
+                (*node).Type = Int()
             }
         } else {
             break

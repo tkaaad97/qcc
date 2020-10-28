@@ -109,5 +109,9 @@ assertExpr 7 'int a; int b; a = 1; b = 2; add(a, b) + 4;'
 assertExpr 4 'int a; int* b; a = 0; b = &a; *b = 3; a + 1;'
 assertExpr 4 'int *p; alloc4(&p, 1, 2, 4, 8); *(p + 2);'
 assertExpr 8 'int *p; alloc4(&p, 1, 2, 4, 8); int *q; q = p + 3; return *q;'
+assertExpr 4 'sizeof(1);'
+assertExpr 4 'int a; a = 2; sizeof(a);'
+assertExpr 8 'int a; a = 3; sizeof(&a);'
+assertProgram 4 'int fun(int a, int b) { return a + b; } int main() { return sizeof(fun(1, 2)); }'
 
 echo OK

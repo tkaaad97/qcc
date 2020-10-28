@@ -22,7 +22,7 @@ func main() {
     }
 
     // プログラムパース
-    state := ParserState { tokens, 0, make(map[string]*Node), }
+    state := ParserState { tokens, 0, make(map[string]*Node), make(map[string]*CType) }
     if defs, err := Program(&state); err != nil {
         fmt.Fprintf(os.Stderr, err.Error())
         os.Exit(1)
