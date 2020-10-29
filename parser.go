@@ -233,6 +233,28 @@ func Tokenize(input []rune) ([]Token, error) {
             continue
         }
 
+        if input[off] == '[' {
+            token := Token {
+                Kind: TokenLeftBracket,
+                Str: "[",
+                Pos: off,
+            }
+            tokens = append(tokens, token)
+            off++
+            continue
+        }
+
+        if input[off] == ']' {
+            token := Token {
+                Kind: TokenRightBracket,
+                Str: "]",
+                Pos: off,
+            }
+            tokens = append(tokens, token)
+            off++
+            continue
+        }
+
         if unicode.IsDigit(input[off]) {
             if token, remaining, err := ParseNum(input, off); err != nil {
                 return tokens, errors.New("tokenizeに失敗しました。")
@@ -309,6 +331,14 @@ func ConsumeLeftBrace(state *ParserState) bool {
 
 func ConsumeRightBrace(state *ParserState) bool {
     return ConsumeTokenKind(state, TokenRightBrace)
+}
+
+func ConsumeLeftBracket(state *ParserState) bool {
+    return ConsumeTokenKind(state, TokenLeftBracket)
+}
+
+func ConsumeRightBracket(state *ParserState) bool {
+    return ConsumeTokenKind(state, TokenRightBracket)
 }
 
 func ConsumeElse(state *ParserState) bool {
@@ -396,7 +426,8 @@ func NewNodeDecl(state *ParserState, name string, t *CType) (*Node, error) {
     if _, exists := (*locals)[name]; exists {
         return nil, fmt.Errorf("変数名はすでに使われています。name: %s", name)
     }
-    o := (len(*locals) + 1) * 8
+    (*state).LocalOffset += Lcm(SizeOf(t), 8)
+    o := (*state).LocalOffset
     p := NewNode(NodeLVar, nil, nil)
     (*p).Offset = o
     (*p).Type = t
@@ -481,19 +512,20 @@ func NewNodeDeref(a *Node) *Node {
     return node
 }
 
-func Program(state *ParserState) ([]NodeAndLocals, error) {
-    defs := []NodeAndLocals{}
+func Program(state *ParserState) ([]NodeAndLocalSize, error) {
+    defs := []NodeAndLocalSize{}
     for {
         if (*state).Offset >= len((*state).Tokens) {
             break
         }
 
         if node, err := FuncDef(state); err != nil {
-            return []NodeAndLocals{}, err
+            return []NodeAndLocalSize{}, err
         } else {
-            def := NodeAndLocals { node, (*state).Locals }
+            def := NodeAndLocalSize { node, (*state).LocalOffset }
             defs = append(defs, def)
             (*state).Locals = make(map[string]*Node)
+            (*state).LocalOffset = 0
         }
     }
 
@@ -561,12 +593,43 @@ func Decl(state *ParserState, baseType *CType) (string, *CType, error) {
     } else if token.Kind == TokenReserved && token.Str == "*" {
         return DeclPointerQualified(state, baseType);
     } else if token.Kind == TokenIdent {
-        // TODO array and function pointer
+        // TODO function pointer
         (*state).Offset++
+        if (*state).Offset < len((*state).Tokens) {
+            next := (*state).Tokens[(*state).Offset]
+            if next.Kind == TokenLeftBracket {
+                if array, err := DeclArray(state, baseType); err != nil {
+                    return "", nil, err
+                } else {
+                    return token.Str, array, nil
+                }
+            }
+        }
         return token.Str, baseType, nil
     } else {
         return "", nil, fmt.Errorf("Declパース失敗 %v %v", token, *state)
     }
+}
+
+func DeclArray(state *ParserState, baseType *CType) (*CType, error) {
+    if (*state).Offset >= len((*state).Tokens) {
+        return nil, errors.New("DeclArrayパース失敗")
+    }
+
+    if ConsumeLeftBracket(state) {
+        if size, consumed := ConsumeNum(state); consumed {
+            if ConsumeRightBracket(state) {
+                return Array(baseType, size), nil
+            } else {
+                return nil, errors.New("DeclArrayパース失敗。\"]\"がありません。")
+            }
+        } else {
+            return nil, errors.New("DeclArrayパース失敗。配列サイズが数値ではありません。")
+        }
+    } else {
+        return nil, errors.New("DeclArrayパース失敗。\"[\"がありません。")
+    }
+    return nil, errors.New("DeclArrayパース失敗");
 }
 
 func DeclParenthesized(state *ParserState, baseType *CType) (string, *CType, error) {

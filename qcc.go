@@ -13,6 +13,8 @@ const (
     TokenRightParenthesis
     TokenLeftBrace
     TokenRightBrace
+    TokenLeftBracket
+    TokenRightBracket
     TokenNum
     TokenIdent
     TokenReturn
@@ -80,12 +82,13 @@ type ParserState struct {
     Tokens []Token
     Offset int
     Locals map[string]*Node
+    LocalOffset int
     Funcs map[string]*CType
 }
 
-type NodeAndLocals struct {
+type NodeAndLocalSize struct {
     Node *Node
-    Locals map[string]*Node
+    LocalSize int
 }
 
 type CTypeKind int
@@ -111,6 +114,11 @@ func PrintErrorAt(input string, pos int, err string) {
 
 func Int() *CType {
     a := CType { CTypeInt, nil, 0 }
+    return &a
+}
+
+func Array(baseType *CType, size int) *CType {
+    a := CType { CTypeArray, baseType, size }
     return &a
 }
 
@@ -141,4 +149,15 @@ func DerefType(t *CType) (*CType, bool) {
     }
 
     return (*t).PointerTo, true
+}
+
+func Gcd(a, b int) int {
+    if b == 0 {
+        return a
+    }
+    return Gcd(b, a % b)
+}
+
+func Lcm(a, b int) int {
+    return a * b / Gcd(a, b)
 }
