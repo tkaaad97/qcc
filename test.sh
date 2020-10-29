@@ -114,5 +114,7 @@ assertExpr 4 'int a; a = 2; sizeof(a);'
 assertExpr 8 'int a; a = 3; sizeof(&a);'
 assertProgram 4 'int fun(int a, int b) { return a + b; } int main() { return sizeof(fun(1, 2)); }'
 assertExpr 42 'int a[3]; int *b; int c; c = 41; b = &c; *b = (*b) + 1; return c;'
+assertExpr 2 'int a[3]; *a = 2; return *a;'
+assertExpr 2 'int a[3]; *(a + 1) = 2; return *(a + 1);'
 
 echo OK

@@ -38,34 +38,34 @@ type Token struct {
 type NodeKind int
 
 const (
-    NodeAdd NodeKind = iota
-    NodeSub
-    NodeMul
-    NodeDiv
-    NodeNum
-    NodeAssign
-    NodeEq
-    NodeNeq
-    NodeLt
-    NodeLe
-    NodeGt
-    NodeGe
-    NodeLVar
-    NodeReturn
-    NodeIf
-    NodeEither
-    NodeFor
-    NodeForFirst
-    NodeForSecond
-    NodeWhile
-    NodeBlock
-    NodeBlockChild
-    NodeFuncCall
-    NodeFuncArg
-    NodeFuncDef
-    NodeAddr
-    NodeDeref
-    NodeDecl
+    NodeAdd NodeKind = 1
+    NodeSub = 2
+    NodeMul = 3
+    NodeDiv = 4
+    NodeNum = 5
+    NodeAssign = 6
+    NodeEq = 7
+    NodeNeq = 8
+    NodeLt = 9
+    NodeLe = 10
+    NodeGt = 11
+    NodeGe = 12
+    NodeLVar = 13
+    NodeReturn = 14
+    NodeIf = 15
+    NodeEither = 16
+    NodeFor = 17
+    NodeForFirst = 18
+    NodeForSecond = 19
+    NodeWhile = 20
+    NodeBlock = 21
+    NodeBlockChild = 22
+    NodeFuncCall = 23
+    NodeFuncArg = 24
+    NodeFuncDef = 25
+    NodeAddr = 26
+    NodeDeref = 27
+    NodeDecl = 28
 )
 
 type Node struct {

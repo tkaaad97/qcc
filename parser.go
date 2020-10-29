@@ -512,6 +512,19 @@ func NewNodeDeref(a *Node) *Node {
     return node
 }
 
+func ArrayToPointer(node *Node) *Node {
+    if node != nil && (*node).Kind == NodeLVar {
+        t := (*node).Type
+        if t != nil && (*t).Kind == CTypeArray {
+            pt := CType { CTypePointer, (*t).PointerTo, 0 }
+            q := NewNode(NodeAddr, node, nil)
+            (*q).Type = &pt
+            return q
+        }
+    }
+    return node
+}
+
 func Program(state *ParserState) ([]NodeAndLocalSize, error) {
     defs := []NodeAndLocalSize{}
     for {
@@ -915,6 +928,7 @@ func Unary(state *ParserState) (*Node, error) {
         if a, err := Primary(state); err != nil {
             return nil, err
         } else {
+            a = ArrayToPointer(a)
             return NewNodeDeref(a), nil
         }
     } else if ConsumeSizeOf(state) {
@@ -979,6 +993,7 @@ func Add(state *ParserState) (*Node, error) {
 
     for {
         if ConsumeOp(state, "+") {
+            node = ArrayToPointer(node)
             if rhs, err := Mul(state); err != nil {
                 return nil, err
             } else {
@@ -1032,6 +1047,7 @@ func Equality(state *ParserState) (*Node, error) {
             if rhs, err := Relational(state); err != nil {
                 return nil, err
             } else {
+                node = ArrayToPointer(node)
                 node = NewNode(NodeEq, node, rhs)
                 // TODO boolある?
                 (*node).Type = Int()
@@ -1040,6 +1056,7 @@ func Equality(state *ParserState) (*Node, error) {
             if rhs, err := Relational(state); err != nil {
                 return nil, err
             } else {
+                node = ArrayToPointer(node)
                 node = NewNode(NodeNeq, node, rhs)
                 // TODO boolある?
                 (*node).Type = Int()

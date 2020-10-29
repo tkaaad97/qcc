@@ -65,7 +65,7 @@ func GenLVarAddress(node *Node, state *GenState) {
     } else if (*node).Kind == NodeDeref {
         Gen((*node).Lhs, state)
     } else {
-        fmt.Fprintf(os.Stderr, "代入の左辺値が変数ではありません。\n",)
+        fmt.Fprintf(os.Stderr, "代入の左辺値が変数ではありません。\n")
         os.Exit(1)
     }
 }
