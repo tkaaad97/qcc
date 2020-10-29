@@ -93,11 +93,13 @@ type CTypeKind int
 const (
     CTypeInt CTypeKind = iota
     CTypePointer
+    CTypeArray
 )
 
 type CType struct {
     Kind CTypeKind
     PointerTo *CType
+    ArraySize int
 }
 
 func PrintErrorAt(input string, pos int, err string) {
@@ -108,21 +110,25 @@ func PrintErrorAt(input string, pos int, err string) {
 }
 
 func Int() *CType {
-    a := CType { CTypeInt, nil }
+    a := CType { CTypeInt, nil, 0 }
     return &a
 }
 
 func PointerTo(base *CType) *CType {
-    a := CType { CTypePointer, base }
+    a := CType { CTypePointer, base, 0 }
     return &a
 }
 
 func SizeOf(t *CType) int {
-    if (*t).Kind == CTypeInt {
+    switch (*t).Kind {
+    case CTypeInt:
         return 4
-    } else {
+    case CTypePointer:
         return 8
+    case CTypeArray:
+        return (*t).ArraySize * SizeOf((*t).PointerTo)
     }
+    return -1
 }
 
 func DerefType(t *CType) (*CType, bool) {
