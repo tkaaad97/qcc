@@ -993,17 +993,16 @@ func Add(state *ParserState) (*Node, error) {
 
     for {
         if ConsumeOp(state, "+") {
-            node = ArrayToPointer(node)
             if rhs, err := Mul(state); err != nil {
                 return nil, err
             } else {
-                node = NewNode(NodeAdd, node, rhs)
+                node = NewNode(NodeAdd, ArrayToPointer(node), ArrayToPointer(rhs))
             }
         } else if ConsumeOp(state, "-") {
             if rhs, err := Mul(state); err != nil {
                 return nil, err
             } else {
-                node = NewNode(NodeSub, node, rhs)
+                node = NewNode(NodeSub, ArrayToPointer(node), ArrayToPointer(rhs))
             }
         } else {
             break
@@ -1027,7 +1026,7 @@ func Assign(state *ParserState) (*Node, error) {
         if rhs, err := Assign(state); err != nil {
             return nil, err
         } else {
-            node = NewNode(NodeAssign, node, rhs)
+            node = NewNode(NodeAssign, node, ArrayToPointer(rhs))
         }
     }
     (*node).Type = t
@@ -1047,8 +1046,7 @@ func Equality(state *ParserState) (*Node, error) {
             if rhs, err := Relational(state); err != nil {
                 return nil, err
             } else {
-                node = ArrayToPointer(node)
-                node = NewNode(NodeEq, node, rhs)
+                node = NewNode(NodeEq, ArrayToPointer(node), ArrayToPointer(rhs))
                 // TODO boolある?
                 (*node).Type = Int()
             }
@@ -1056,8 +1054,7 @@ func Equality(state *ParserState) (*Node, error) {
             if rhs, err := Relational(state); err != nil {
                 return nil, err
             } else {
-                node = ArrayToPointer(node)
-                node = NewNode(NodeNeq, node, rhs)
+                node = NewNode(NodeNeq, ArrayToPointer(node), ArrayToPointer(rhs))
                 // TODO boolある?
                 (*node).Type = Int()
             }
