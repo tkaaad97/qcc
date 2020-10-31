@@ -109,7 +109,7 @@ func Gen(node *Node, state *GenState) {
         current := (*node).Rhs
         for {
             if current == nil {
-                return
+                break
             }
             Gen((*current).Lhs, state)
             current = (*current).Rhs

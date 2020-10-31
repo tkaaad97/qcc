@@ -97,12 +97,20 @@ const (
     CTypeInt CTypeKind = iota
     CTypePointer
     CTypeArray
+    CTypeFunction
 )
+
+type Parameter struct {
+    Name string
+    Type *CType
+}
 
 type CType struct {
     Kind CTypeKind
     PointerTo *CType
     ArraySize int
+    ReturnType *CType
+    Parameters []Parameter
 }
 
 func PrintErrorAt(input string, pos int, err string) {
@@ -113,17 +121,22 @@ func PrintErrorAt(input string, pos int, err string) {
 }
 
 func Int() *CType {
-    a := CType { CTypeInt, nil, 0 }
+    a := CType { CTypeInt, nil, 0, nil, nil }
     return &a
 }
 
 func Array(baseType *CType, size int) *CType {
-    a := CType { CTypeArray, baseType, size }
+    a := CType { CTypeArray, baseType, size, nil, nil }
     return &a
 }
 
 func PointerTo(base *CType) *CType {
-    a := CType { CTypePointer, base, 0 }
+    a := CType { CTypePointer, base, 0, nil, nil }
+    return &a
+}
+
+func Function(returnType *CType, parameters []Parameter) *CType {
+    a := CType { CTypeFunction, nil, 0, returnType, parameters }
     return &a
 }
 
