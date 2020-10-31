@@ -867,6 +867,30 @@ func Return(state *ParserState) (*Node, error) {
     }
 }
 
+func Postfix(state *ParserState) (*Node, error) {
+    if (*state).Offset >= len((*state).Tokens) {
+        return nil, errors.New("Postfixパース失敗")
+    }
+
+    if prim, err0 := Primary(state); err0 != nil {
+        return nil, err0
+    } else {
+        node := prim
+        if ConsumeLeftBracket(state) {
+            if expr, err1 := Expr(state); err1 != nil {
+                return nil, err1
+            } else {
+                if !ConsumeRightBracket(state) {
+                    return nil, errors.New("\"]\"が不足しています。")
+                }
+                node = NewNodeDeref(NewNode(NodeAdd, ArrayToPointer(prim), ArrayToPointer(expr)))
+            }
+        }
+        return node, nil
+    }
+}
+
+
 func Primary(state *ParserState) (*Node, error) {
     if v, consumed := ConsumeNum(state); consumed {
         return NewNodeNum(v), nil
@@ -943,7 +967,7 @@ func Unary(state *ParserState) (*Node, error) {
             }
         }
     }
-    return Primary(state)
+    return Postfix(state)
 }
 
 func Mul(state *ParserState) (*Node, error) {
