@@ -417,6 +417,30 @@ func ConsumeType(state *ParserState) (*CType, bool) {
     return nil, false
 }
 
+func SatisfyOp(state *ParserState, op string) bool {
+    if (*state).Offset >= len((*state).Tokens) {
+        return false
+    }
+    token := (*state).Tokens[(*state).Offset]
+    return token.Kind == TokenReserved && token.Str == op
+}
+
+func SatisfyTokenKind(state *ParserState, kind TokenKind) bool {
+    if (*state).Offset >= len((*state).Tokens) {
+        return false
+    }
+    token := (*state).Tokens[(*state).Offset]
+    return token.Kind == kind
+}
+
+func SatisfyType(state *ParserState) bool {
+    if (*state).Offset >= len((*state).Tokens) {
+        return false
+    }
+    token := (*state).Tokens[(*state).Offset]
+    return IsType(token)
+}
+
 func NewNode(kind NodeKind, lhs *Node, rhs *Node) *Node {
     node := Node { kind, lhs, rhs, 0, 0, "", nil }
     return &node
@@ -440,6 +464,11 @@ func NewNodeDecl(state *ParserState, name string, t *CType) (*Node, error) {
     (*p).Offset = o
     (*p).Type = t
     (*locals)[name] = p
+    return p, nil
+}
+
+func NewNodeGVar(state *ParserState, name string, t *CType) (*Node, error) {
+    p := NewNode(-1, nil, nil)
     return p, nil
 }
 
@@ -578,23 +607,29 @@ func FuncDefOrDecl(state *ParserState) (*Node, error) {
     if ident, cont, err := Declarator(state); err != nil {
         return nil, err
     } else {
-        t := cont(baseType)
-        paramNodes := []*Node{}
-        if (*t).Kind == CTypeFunction {
-            params := (*t).Parameters
-            for _, param := range(params) {
-                if paramNode, err := NewNodeDecl(state, param.Name, param.Type); err != nil {
-                    return nil, err
-                } else {
-                    paramNodes = append(paramNodes, paramNode)
+        if SatisfyTokenKind(state, TokenLeftBrace) {
+            t := cont(baseType)
+            paramNodes := []*Node{}
+            if (*t).Kind == CTypeFunction {
+                params := (*t).Parameters
+                for _, param := range(params) {
+                    if paramNode, err := NewNodeDecl(state, param.Name, param.Type); err != nil {
+                        return nil, err
+                    } else {
+                        paramNodes = append(paramNodes, paramNode)
+                    }
                 }
             }
-        }
 
-        if block, err := Block(state); err != nil {
-            return nil, err
+            if block, err := Block(state); err != nil {
+                return nil, err
+            } else {
+                return NewNodeFuncDef(state, ident, paramNodes, block, (*t).ReturnType)
+            }
+        } else if ConsumeOp(state, ";") {
+            return NewNodeGVar(state, ident, cont(baseType));
         } else {
-            return NewNodeFuncDef(state, ident, paramNodes, block, (*t).ReturnType)
+            return nil, errors.New("パース失敗")
         }
     }
 }
@@ -919,7 +954,7 @@ func Stmt(state *ParserState) (*Node, error) {
         return NewNode(NodeWhile, cond, rhs), nil
     }
 
-    if IsType(token) {
+    if SatisfyType(state) {
         if ident, t, err := Declaration(state); err != nil {
             return nil, err
         } else {
