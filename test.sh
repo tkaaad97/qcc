@@ -117,5 +117,6 @@ assertExpr 42 'int a[3]; int *b; int c; c = 41; b = &c; *b = (*b) + 1; return c;
 assertExpr 2 'int a[3]; *a = 2; return *a;'
 assertExpr 2 'int a[3]; *(a + 1) = 2; return *(a + 1);'
 assertExpr 3 'int a[2]; a[0] = 2; a[1] = 1; return a[0] + a[1];'
+assertProgram 11 'int x; int y; int main() { x = 2; y = 9; return x + y; }'
 
 echo OK

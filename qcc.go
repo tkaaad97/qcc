@@ -84,8 +84,7 @@ type ParserState struct {
     Locals map[string]*Node
     LocalOffset int
     Funcs map[string]*CType
-    Globals map[string]*CType
-    GlobalNodes []*Node
+    Globals map[string]*Node
 }
 
 type NodeAndLocalSize struct {

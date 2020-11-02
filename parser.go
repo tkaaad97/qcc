@@ -474,14 +474,18 @@ func NewNodeGVar(state *ParserState, name string, t *CType) (*Node, error) {
     }
     p := NewNode(NodeGVar, nil, nil)
     (*p).Type = t
-    (*globals)[name] = t
-    (*state).GlobalNodes = append((*state).GlobalNodes, p)
+    (*p).Ident = name
+    (*globals)[name] = p
     return p, nil
 }
 
-func RefNodeLVar(state *ParserState, name string) (*Node, error) {
+func RefNode(state *ParserState, name string) (*Node, error) {
     locals := &((*state).Locals)
     if n, ok := (*locals)[name]; ok {
+        return n, nil
+    }
+    globals := &((*state).Globals)
+    if n, ok := (*globals)[name]; ok {
         return n, nil
     }
     return nil, fmt.Errorf("変数が見つかりません。name: %s", name)
@@ -569,7 +573,8 @@ func ArrayToPointer(node *Node) *Node {
     return node
 }
 
-func Program(state *ParserState) ([]NodeAndLocalSize, error) {
+func Program(state *ParserState) ([]*Node, []NodeAndLocalSize, error) {
+    globals := []*Node{}
     defs := []NodeAndLocalSize{}
     for {
         if (*state).Offset >= len((*state).Tokens) {
@@ -577,9 +582,12 @@ func Program(state *ParserState) ([]NodeAndLocalSize, error) {
         }
 
         if node, err := FuncDefOrDecl(state); err != nil {
-            return []NodeAndLocalSize{}, err
+            return nil, nil, err
         } else {
-            if (*node).Kind == NodeFuncDef {
+            t := (*node).Type
+            if (*node).Kind == NodeGVar {
+                globals = append(globals, node)
+            } else if (*t).Kind != CTypeFunction {
                 def := NodeAndLocalSize { node, (*state).LocalOffset }
                 defs = append(defs, def)
             }
@@ -588,7 +596,7 @@ func Program(state *ParserState) ([]NodeAndLocalSize, error) {
         }
     }
 
-    return defs, nil
+    return globals, defs, nil
 }
 
 func FuncDefOrDecl(state *ParserState) (*Node, error) {
@@ -1054,7 +1062,7 @@ func Primary(state *ParserState) (*Node, error) {
                 }
             }
         }
-        return RefNodeLVar(state, ident)
+        return RefNode(state, ident)
     }
 
     if ConsumeLeftParenthesis(state) {

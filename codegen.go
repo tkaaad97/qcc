@@ -9,9 +9,18 @@ type GenState struct {
     LabelCounter int
 }
 
-func GenProgram(defs []NodeAndLocalSize) {
-    fmt.Printf(".intel_syntax noprefix\n")
-    fmt.Printf(".globl main\n")
+func GenProgram(globals []*Node, defs []NodeAndLocalSize) {
+    fmt.Printf("  .intel_syntax noprefix\n")
+
+    if len(globals) > 0 {
+        fmt.Printf("  .data\n")
+        for _, node := range(globals) {
+            GenGVar(node)
+        }
+    }
+
+    fmt.Printf("  .text\n")
+    fmt.Printf("  .globl main\n")
 
     state := GenState { 1 }
     for _, def := range(defs) {
@@ -32,6 +41,12 @@ func GenParams(node *Node) {
         i++
         node = (*node).Lhs
     }
+}
+
+func GenGVar(node *Node) {
+    size := SizeOf((*node).Type)
+    fmt.Printf("%s:\n", (*node).Ident)
+    fmt.Printf("  .zero %d\n", size)
 }
 
 func GenDef(node *Node, localSize int, state *GenState) {
@@ -58,10 +73,12 @@ func GenDef(node *Node, localSize int, state *GenState) {
     fmt.Printf("  ret\n")
 }
 
-func GenLVarAddress(node *Node, state *GenState) {
+func GenVarAddress(node *Node, state *GenState) {
     if (*node).Kind == NodeLVar {
         fmt.Printf("  mov rax, rbp\n")
         fmt.Printf("  sub rax, %d\n", (*node).Offset)
+    } else if (*node).Kind == NodeGVar {
+        fmt.Printf("  lea rax, %s[rip]\n", (*node).Ident)
     } else if (*node).Kind == NodeDeref {
         Gen((*node).Lhs, state)
     } else {
@@ -82,11 +99,15 @@ func Gen(node *Node, state *GenState) {
         fmt.Printf("  mov rax, %d\n", (*node).Val)
         return
     case NodeLVar:
-        GenLVarAddress(node, state)
+        GenVarAddress(node, state)
+        fmt.Printf("  mov rax, [rax]\n")
+        return
+    case NodeGVar:
+        GenVarAddress(node, state)
         fmt.Printf("  mov rax, [rax]\n")
         return
     case NodeAssign:
-        GenLVarAddress((*node).Lhs, state)
+        GenVarAddress((*node).Lhs, state)
         fmt.Printf("  push rax\n")
         Gen((*node).Rhs, state)
         fmt.Printf("  mov rdi, rax\n")
@@ -95,7 +116,7 @@ func Gen(node *Node, state *GenState) {
         fmt.Printf("  mov rax, rdi\n")
         return
     case NodeAddr:
-        GenLVarAddress((*node).Lhs, state)
+        GenVarAddress((*node).Lhs, state)
         return
     case NodeDeref:
         Gen((*node).Lhs, state)
