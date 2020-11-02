@@ -65,7 +65,7 @@ const (
     NodeFuncDef = 25
     NodeAddr = 26
     NodeDeref = 27
-    NodeDecl = 28
+    NodeGVar = 28
 )
 
 type Node struct {
@@ -84,6 +84,8 @@ type ParserState struct {
     Locals map[string]*Node
     LocalOffset int
     Funcs map[string]*CType
+    Globals map[string]*CType
+    GlobalNodes []*Node
 }
 
 type NodeAndLocalSize struct {
