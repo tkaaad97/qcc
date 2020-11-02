@@ -468,7 +468,14 @@ func NewNodeDecl(state *ParserState, name string, t *CType) (*Node, error) {
 }
 
 func NewNodeGVar(state *ParserState, name string, t *CType) (*Node, error) {
-    p := NewNode(-1, nil, nil)
+    globals := &((*state).Globals)
+    if _, exists := (*globals)[name]; exists {
+        return nil, fmt.Errorf("グローバル変数名はすでに使われています。name: %s", name)
+    }
+    p := NewNode(NodeGVar, nil, nil)
+    (*p).Type = t
+    (*globals)[name] = t
+    (*state).GlobalNodes = append((*state).GlobalNodes, p)
     return p, nil
 }
 
