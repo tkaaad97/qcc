@@ -23,6 +23,7 @@ const (
     TokenFor
     TokenWhile
     TokenComma
+    TokenChar
     TokenInt
     TokenSizeOf
     TokenEof
@@ -96,6 +97,7 @@ type CTypeKind int
 
 const (
     CTypeInt CTypeKind = iota
+    CTypeChar
     CTypePointer
     CTypeArray
     CTypeFunction
@@ -143,6 +145,8 @@ func Function(returnType *CType, parameters []Parameter) *CType {
 
 func SizeOf(t *CType) int {
     switch (*t).Kind {
+    case CTypeChar:
+        return 1
     case CTypeInt:
         return 4
     case CTypePointer:

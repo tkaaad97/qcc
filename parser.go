@@ -33,6 +33,8 @@ func IsIdent(str string) bool {
 
 func IsType(token Token) bool {
     switch (token.Kind) {
+    case TokenChar:
+        return true
     case TokenInt:
         return true
     }
@@ -70,6 +72,8 @@ func Tokenize(input []rune) ([]Token, error) {
             }
             kind := TokenIdent
             switch (string(ident)) {
+            case "char":
+                kind = TokenChar
             case "int":
                 kind = TokenInt
             case "return":
