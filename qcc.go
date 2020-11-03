@@ -123,6 +123,11 @@ func PrintErrorAt(input string, pos int, err string) {
     fmt.Fprintf(os.Stderr, "^ %s\n", err)
 }
 
+func Char() *CType {
+    a := CType { CTypeChar, nil, 0, nil, nil }
+    return &a
+}
+
 func Int() *CType {
     a := CType { CTypeInt, nil, 0, nil, nil }
     return &a

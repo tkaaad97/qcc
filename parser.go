@@ -414,7 +414,11 @@ func ConsumeType(state *ParserState) (*CType, bool) {
         return nil, false
     }
     token := (*state).Tokens[(*state).Offset]
-    if token.Kind == TokenInt {
+    switch (token.Kind) {
+    case TokenChar:
+        (*state).Offset++
+        return Char(), true
+    case TokenInt:
         (*state).Offset++
         return Int(), true
     }
@@ -455,6 +459,22 @@ func NewNodeNum(val int) *Node {
     (*p).Val = val
     p.Type = Int();
     return p
+}
+
+func NewNodeAdd(lhs *Node, rhs *Node) *Node {
+    node := Node { NodeAdd, lhs, rhs, 0, 0, "", (*lhs).Type }
+    return &node
+}
+
+func NewNodeSub(lhs *Node, rhs *Node) *Node {
+    t := (*lhs).Type
+    lt := (*lhs).Type
+    rt := (*rhs).Type
+    if lt != nil && rt != nil && (*lt).Kind == CTypePointer && (*rt).Kind == CTypePointer {
+        t = Int()
+    }
+    node := Node { NodeSub, lhs, rhs, 0, 0, "", t }
+    return &node
 }
 
 func NewNodeDecl(state *ParserState, name string, t *CType) (*Node, error) {
@@ -1034,7 +1054,7 @@ func Postfix(state *ParserState) (*Node, error) {
                 if !ConsumeRightBracket(state) {
                     return nil, errors.New("\"]\"が不足しています。")
                 }
-                node = NewNodeDeref(NewNode(NodeAdd, ArrayToPointer(prim), ArrayToPointer(expr)))
+                node = NewNodeDeref(NewNodeAdd(ArrayToPointer(prim), ArrayToPointer(expr)))
             }
         }
         return node, nil
@@ -1171,13 +1191,13 @@ func Add(state *ParserState) (*Node, error) {
             if rhs, err := Mul(state); err != nil {
                 return nil, err
             } else {
-                node = NewNode(NodeAdd, ArrayToPointer(node), ArrayToPointer(rhs))
+                node = NewNodeAdd(ArrayToPointer(node), ArrayToPointer(rhs))
             }
         } else if ConsumeOp(state, "-") {
             if rhs, err := Mul(state); err != nil {
                 return nil, err
             } else {
-                node = NewNode(NodeSub, ArrayToPointer(node), ArrayToPointer(rhs))
+                node = NewNodeSub(ArrayToPointer(node), ArrayToPointer(rhs))
             }
         } else {
             break
