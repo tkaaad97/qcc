@@ -565,7 +565,7 @@ func NewNodeDeref(a *Node) *Node {
 }
 
 func ArrayToPointer(node *Node) *Node {
-    if node != nil && (*node).Kind == NodeLVar {
+    if node != nil && ((*node).Kind == NodeLVar || (*node).Kind == NodeGVar) {
         t := (*node).Type
         if t != nil && (*t).Kind == CTypeArray {
             pt := CType { CTypePointer, (*t).PointerTo, 0, nil, nil }
