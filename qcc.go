@@ -184,3 +184,48 @@ func Gcd(a, b int) int {
 func Lcm(a, b int) int {
     return a * b / Gcd(a, b)
 }
+
+func IsExpr(node *Node) bool {
+    if node == nil {
+        return false
+    }
+
+    switch ((*node).Kind) {
+    case NodeAdd:
+        return true
+    case NodeSub:
+        return true
+    case NodeMul:
+        return true
+    case NodeDiv:
+        return true
+    case NodeNum:
+        return true
+    case NodeAssign:
+        return true
+    case NodeEq:
+        return true
+    case NodeNeq:
+        return true
+    case NodeLt:
+        return true
+    case NodeLe:
+        return true
+    case NodeGt:
+        return true
+    case NodeGe:
+        return true
+    case NodeLVar:
+        return true
+    case NodeFuncCall:
+        return true
+    case NodeAddr:
+        return true
+    case NodeDeref:
+        return true
+    case NodeGVar:
+        return true
+    }
+
+    return false
+}

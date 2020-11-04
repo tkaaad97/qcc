@@ -36,7 +36,9 @@ func GenParams(node *Node) {
             break
         }
         fmt.Printf("  mov rax, rbp\n")
-        fmt.Printf("  sub rax, %d\n", (*node).Offset)
+        if ((*node).Offset != 0) {
+            fmt.Printf("  sub rax, %d\n", (*node).Offset)
+        }
         fmt.Printf("  mov [rax], %s\n", registers[i])
         i++
         node = (*node).Lhs
@@ -60,7 +62,9 @@ func GenDef(node *Node, localSize int, state *GenState) {
     // プロローグ
     fmt.Printf("  push rbp\n")
     fmt.Printf("  mov rbp, rsp\n")
-    fmt.Printf("  sub rsp, %d\n", localSize)
+    if localSize != 0 {
+        fmt.Printf("  sub rsp, %d\n", localSize)
+    }
 
     // 引数をレジスタからスタックに移動
     GenParams((*node).Lhs)
@@ -76,11 +80,31 @@ func GenDef(node *Node, localSize int, state *GenState) {
 func GenVarAddress(node *Node, state *GenState) {
     if (*node).Kind == NodeLVar {
         fmt.Printf("  mov rax, rbp\n")
-        fmt.Printf("  sub rax, %d\n", (*node).Offset)
+        if (*node).Offset != 0 {
+            fmt.Printf("  sub rax, %d\n", (*node).Offset)
+        }
     } else if (*node).Kind == NodeGVar {
         fmt.Printf("  lea rax, %s[rip]\n", (*node).Ident)
     } else if (*node).Kind == NodeDeref {
         Gen((*node).Lhs, state)
+    } else {
+        fmt.Fprintf(os.Stderr, "代入の左辺値が変数ではありません。\n")
+        os.Exit(1)
+    }
+}
+
+func GenPushVarAddress(node *Node, state *GenState) {
+    if (*node).Kind == NodeLVar {
+        fmt.Printf("  mov rax, rbp\n")
+        if (*node).Offset != 0 {
+            fmt.Printf("  sub rax, %d\n", (*node).Offset)
+        }
+        fmt.Printf("  push rax\n")
+    } else if (*node).Kind == NodeGVar {
+        fmt.Printf("  lea rax, %s[rip]\n", (*node).Ident)
+        fmt.Printf("  push rax\n")
+    } else if (*node).Kind == NodeDeref {
+        GenExpr((*node).Lhs, state)
     } else {
         fmt.Fprintf(os.Stderr, "代入の左辺値が変数ではありません。\n")
         os.Exit(1)
@@ -107,13 +131,10 @@ func Gen(node *Node, state *GenState) {
         fmt.Printf("  mov rax, [rax]\n")
         return
     case NodeAssign:
-        GenVarAddress((*node).Lhs, state)
-        fmt.Printf("  push rax\n")
+        GenPushVarAddress((*node).Lhs, state)
         Gen((*node).Rhs, state)
-        fmt.Printf("  mov rdi, rax\n")
-        fmt.Printf("  pop rax\n")
-        fmt.Printf("  mov [rax], rdi\n")
-        fmt.Printf("  mov rax, rdi\n")
+        fmt.Printf("  pop rdi\n")
+        fmt.Printf("  mov [rdi], rax\n")
         return
     case NodeAddr:
         GenVarAddress((*node).Lhs, state)
@@ -203,13 +224,58 @@ func Gen(node *Node, state *GenState) {
         return
     }
 
+    GenBinOp(node, state)
+}
+
+func GenExpr(node *Node, state *GenState) {
+    if (!IsExpr(node)) {
+        fmt.Fprintf(os.Stderr, "式ノードではありません\n")
+        os.Exit(1)
+    }
+
+    switch ((*node).Kind) {
+    case NodeNum:
+        fmt.Printf("  push %d\n", (*node).Val)
+        return
+    case NodeLVar:
+        GenVarAddress(node, state)
+        fmt.Printf("  push [rax]\n")
+        return
+    case NodeGVar:
+        GenVarAddress(node, state)
+        fmt.Printf("  push [rax]\n")
+        return
+    case NodeAssign:
+        GenPushVarAddress((*node).Lhs, state)
+        Gen((*node).Rhs, state)
+        fmt.Printf("  pop rdi\n")
+        fmt.Printf("  mov [rdi], rax\n")
+        fmt.Printf("  push rax\n")
+        return
+    case NodeAddr:
+        GenPushVarAddress((*node).Lhs, state)
+        return
+    case NodeDeref:
+        Gen((*node).Lhs, state)
+        fmt.Printf("  push [rax]\n")
+        return
+    case NodeFuncCall:
+        Gen(node, state)
+        fmt.Printf("  push rax\n")
+        return
+    }
+
+    GenBinOp(node, state)
+    fmt.Printf("  push rax\n")
+}
+
+func GenBinOp(node *Node, state *GenState) {
     lhs := (*node).Lhs
     rhs := (*node).Rhs
-    Gen(lhs, state)
-    fmt.Printf("  push rax\n")
-    Gen(rhs, state)
+    GenExpr(lhs, state)
+    GenExpr(rhs, state)
 
-    fmt.Printf("  mov rdi, rax\n")
+    fmt.Printf("  pop rdi\n")
     fmt.Printf("  pop rax\n")
 
     switch((*node).Kind) {
@@ -219,42 +285,53 @@ func Gen(node *Node, state *GenState) {
             fmt.Printf("  imul rdi, %d\n", size)
         }
         fmt.Printf("  add rax, rdi\n")
+        return
     case NodeSub:
         if (lhs.Type != nil && (*lhs.Type).Kind == CTypePointer) {
             size := SizeOf((*lhs.Type).PointerTo)
             fmt.Printf("  imul rdi, %d\n", size)
         }
         fmt.Printf("  sub rax, rdi\n")
+        return
     case NodeMul:
         fmt.Printf("  imul rax, rdi\n")
+        return
     case NodeDiv:
         fmt.Printf("  cqo\n")
         fmt.Printf("  idiv rdi\n")
+        return
     case NodeEq:
         fmt.Printf("cmp rax, rdi\n")
         fmt.Printf("sete al\n")
         fmt.Printf("movzb rax, al\n")
+        return
     case NodeNeq:
         fmt.Printf("cmp rax, rdi\n")
         fmt.Printf("setne al\n")
         fmt.Printf("movzb rax, al\n")
+        return
     case NodeLt:
         fmt.Printf("cmp rax, rdi\n")
         fmt.Printf("setl al\n")
         fmt.Printf("movzb rax, al\n")
+        return
     case NodeLe:
         fmt.Printf("cmp rax, rdi\n")
         fmt.Printf("setle al\n")
         fmt.Printf("movzb rax, al\n")
+        return
     case NodeGt:
         fmt.Printf("cmp rdi, rax\n")
         fmt.Printf("setl al\n")
         fmt.Printf("movzb rax, al\n")
+        return
     case NodeGe:
         fmt.Printf("cmp rdi, rax\n")
         fmt.Printf("setle al\n")
         fmt.Printf("movzb rax, al\n")
+        return
     }
 
-    return
+    fmt.Fprintf(os.Stderr, "二項演算ではありません\n")
+    os.Exit(1)
 }
