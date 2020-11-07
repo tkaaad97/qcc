@@ -1,35 +1,41 @@
 #!/bin/bash
 
 assertProgram() {
+  set -e
   expected="$1"
   input="$2"
 
   ./qcc "${input}" > tmp/test.s
   cc -o tmp/test tmp/test.s tmp/external.o
+  set +e
   ./tmp/test
   actual="$?"
 
   if [ "$actual" = "$expected" ]; then
-    echo "$input => $actual"
+    echo "OK $input => $actual"
   else
+    printf "\x1b[31mNG\x1b[0m "
     echo "$input => $expected expected, but got $actual"
-    exit 1
+    return 1
   fi
 }
 assertExpr() {
+  set -e
   expected="$1"
   input="$2"
 
   ./qcc "int main(){${input}}" > tmp/test.s
   cc -o tmp/test tmp/test.s tmp/external.o
+  set +e
   ./tmp/test
   actual="$?"
 
   if [ "$actual" = "$expected" ]; then
-    echo "$input => $actual"
+    echo "OK $input => $actual"
   else
+    printf "\x1b[31mNG\x1b[0m "
     echo "$input => $expected expected, but got $actual"
-    exit 1
+    return 1
   fi
 }
 
@@ -42,8 +48,9 @@ assertStdout() {
   actual="$(./tmp/test)"
 
   if [ "$actual" = "$expected" ]; then
-    echo "$input => $actual"
+    echo "OK $input => $actual"
   else
+    printf "\x1b[31mNG\x1b[0m "
     echo "$input => $expected expected, but got $actual"
     exit 1
   fi
@@ -120,5 +127,3 @@ assertExpr 3 'int a[2]; a[0] = 2; a[1] = 1; return a[0] + a[1];'
 assertProgram 11 'int x; int y; int main() { x = 2; y = 9; return x + y; }'
 assertExpr 179 'char x[3]; x[0] = -1; x[1] = 2; int y; y = 180; return y + x[0];'
 assertProgram 9 'char x[3]; int main() { x[0] = -2; x[1] = 1; x[2] = 10; return x[0] + x[1] + x[2]; }'
-
-echo OK

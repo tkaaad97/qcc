@@ -3,6 +3,7 @@ package main
 import (
     "fmt"
     "os"
+    "strconv"
 )
 
 type TokenKind int
@@ -122,80 +123,110 @@ type Register16 int
 type Register8 int
 
 const (
-    Rax Register64 = 0
-    Rdi = 1
-    Rsi = 2
-    Rdx = 3
-    Rcx = 4
-    Rbp = 5
-    Rsp = 6
-    Rbx = 7
-    R8 = 8
-    R9 = 9
-    R10 = 10
-    R11 = 11
-    R12 = 12
-    R13 = 13
-    R14 = 14
-    R15 = 15
+    Rax Register64 = iota
+    Rdi
+    Rsi
+    Rdx
+    Rcx
+    Rbp
+    Rsp
+    Rbx
+    R8
+    R9
+    R10
+    R11
+    R12
+    R13
+    R14
+    R15
 )
 
 const (
-    Eax Register32 = 0
-    Edi = 1
-    Esi = 2
-    Edx = 3
-    Ecx = 4
-    Ebp = 5
-    Esp = 6
-    Ebx = 7
-    R8d = 8
-    R9d = 9
-    R10d = 10
-    R11d = 11
-    R12d = 12
-    R13d = 13
-    R14d = 14
-    R15d = 15
+    Eax Register32 = iota
+    Edi
+    Esi
+    Edx
+    Ecx
+    Ebp
+    Esp
+    Ebx
+    R8d
+    R9d
+    R10d
+    R11d
+    R12d
+    R13d
+    R14d
+    R15d
 )
 
 const (
-    Ax Register16 = 0
-    Di = 1
-    Si = 2
-    Dx = 3
-    Cx = 4
-    Bp = 5
-    Sp = 6
-    Bx = 7
-    R8w = 8
-    R9w = 9
-    R10w = 10
-    R11w = 11
-    R12w = 12
-    R13w = 13
-    R14w = 14
-    R15w = 15
+    Ax Register16 = iota
+    Di
+    Si
+    Dx
+    Cx
+    Bp
+    Sp
+    Bx
+    R8w
+    R9w
+    R10w
+    R11w
+    R12w
+    R13w
+    R14w
+    R15w
 )
 
 const (
-    Al Register8 = 0
-    Dil = 1
-    Sil = 2
-    Dl = 3
-    Cl = 4
-    Bpl = 5
-    Spl = 6
-    Bl = 7
-    R8b = 8
-    R9b = 9
-    R10b = 10
-    R11b = 11
-    R12b = 12
-    R13b = 13
-    R14b = 14
-    R15b = 15
+    Al Register8 = iota
+    Dil
+    Sil
+    Dl
+    Cl
+    Bpl
+    Spl
+    Bl
+    R8b
+    R9b
+    R10b
+    R11b
+    R12b
+    R13b
+    R14b
+    R15b
 )
+
+type AsmDataType int
+
+const (
+    BYTE = 1
+    WORD = 2
+    DWORD = 3
+    QWORD = 4
+)
+
+type Immediate struct {
+    Value int
+    AsmDataType AsmDataType
+}
+
+type AsmLocation interface {
+    ShowAsmLocation() string
+    AsmLocationDataType() AsmDataType
+    AsmLocationToValue() AsmValue
+}
+
+type AsmValue interface {
+    ShowAsmValue() string
+    AsmValueDataType() AsmDataType
+}
+
+type AsmDeref struct {
+    Address AsmValue
+    AsmDataType AsmDataType
+}
 
 func PrintErrorAt(input string, pos int, err string) {
     fmt.Fprintf(os.Stderr, "%s\n", input)
@@ -230,17 +261,19 @@ func Function(returnType *CType, parameters []Parameter) *CType {
 }
 
 func SizeOf(t *CType) int {
-    switch (*t).Kind {
-    case CTypeChar:
-        return 1
-    case CTypeInt:
-        return 4
-    case CTypePointer:
-        return 8
-    case CTypeArray:
-        return (*t).ArraySize * SizeOf((*t).PointerTo)
+    if t != nil {
+        switch t.Kind {
+        case CTypeChar:
+            return 1
+        case CTypeInt:
+            return 4
+        case CTypePointer:
+            return 8
+        case CTypeArray:
+            return t.ArraySize * SizeOf(t.PointerTo)
+        }
     }
-    return -1
+    return 8
 }
 
 func DerefType(t *CType) (*CType, bool) {
@@ -248,11 +281,11 @@ func DerefType(t *CType) (*CType, bool) {
         return nil, false
     }
 
-    if (*t).Kind != CTypePointer {
+    if t.Kind != CTypePointer {
         return nil, false
     }
 
-    return (*t).PointerTo, true
+    return t.PointerTo, true
 }
 
 func Gcd(a, b int) int {
@@ -431,21 +464,21 @@ func ShowRegister16(r Register16) string {
 func ShowRegister8(r Register8) string {
     switch r {
     case Al:
-        return "ax"
+        return "al"
     case Dil:
-        return "di"
+        return "dil"
     case Sil:
-        return "si"
+        return "sil"
     case Dl:
-        return "dx"
+        return "dl"
     case Cl:
-        return "cx"
+        return "cl"
     case Bpl:
-        return "bp"
+        return "bpl"
     case Spl:
-        return "sp"
+        return "spl"
     case Bl:
-        return "bx"
+        return "bl"
     case R8b:
         return "r8b"
     case R9b:
@@ -465,4 +498,152 @@ func ShowRegister8(r Register8) string {
     }
 
     return "unknown8"
+}
+
+func ShowAsmDataType(a AsmDataType) string {
+    switch (a) {
+    case BYTE:
+        return "BYTE"
+    case WORD:
+        return "WORD"
+    case DWORD:
+        return "DWORD"
+    case QWORD:
+        return "QWORD"
+    }
+    return ""
+}
+
+func ResolveRegisterByType(i int, t *CType) AsmLocation {
+    size := SizeOf(t)
+    switch (size) {
+    case 1:
+        return Register8(i)
+    case 2:
+        return Register16(i)
+    case 4:
+        return Register32(i)
+    }
+    return Register64(i)
+}
+
+func CTypeToAsmDataType(t *CType) AsmDataType {
+    size := SizeOf(t)
+    switch (size) {
+    case 1:
+        return BYTE
+    case 2:
+        return WORD
+    case 4:
+        return DWORD
+    }
+    return QWORD
+}
+
+func (r Register64) ShowAsmLocation() string {
+    return ShowRegister64(r)
+}
+
+func (Register64) AsmLocationDataType() AsmDataType {
+    return QWORD
+}
+
+func (r Register64) AsmLocationToValue() AsmValue {
+    return r
+}
+
+func (r Register32) ShowAsmLocation() string {
+    return ShowRegister32(r)
+}
+
+func (Register32) AsmLocationDataType() AsmDataType {
+    return DWORD
+}
+
+func (r Register32) AsmLocationToValue() AsmValue {
+    return r
+}
+
+func (r Register16) ShowAsmLocation() string {
+    return ShowRegister16(r)
+}
+
+func (Register16) AsmLocationDataType() AsmDataType {
+    return WORD
+}
+
+func (r Register16) AsmLocationToValue() AsmValue {
+    return r
+}
+
+func (r Register8) ShowAsmLocation() string {
+    return ShowRegister8(r)
+}
+
+func (Register8) AsmLocationDataType() AsmDataType {
+    return BYTE
+}
+
+func (r Register8) AsmLocationToValue() AsmValue {
+    return r
+}
+
+func (a AsmDeref) ShowAsmLocation() string {
+    return fmt.Sprintf("%s PTR [%s]", ShowAsmDataType(a.AsmDataType), a.Address.ShowAsmValue())
+}
+
+func (a AsmDeref) AsmLocationDataType() AsmDataType {
+    return a.AsmDataType
+}
+
+func (a AsmDeref) AsmLocationToValue() AsmValue {
+    return a
+}
+
+func (r Register64) ShowAsmValue() string {
+    return ShowRegister64(r)
+}
+
+func (Register64) AsmValueDataType() AsmDataType {
+    return QWORD
+}
+
+func (r Register32) ShowAsmValue() string {
+    return ShowRegister32(r)
+}
+
+func (Register32) AsmValueDataType() AsmDataType {
+    return DWORD
+}
+
+func (r Register16) ShowAsmValue() string {
+    return ShowRegister16(r)
+}
+
+func (Register16) AsmValueDataType() AsmDataType {
+    return WORD
+}
+
+func (r Register8) ShowAsmValue() string {
+    return ShowRegister8(r)
+}
+
+func (Register8) AsmValueDataType() AsmDataType {
+    return BYTE
+}
+
+func (a AsmDeref) ShowAsmValue() string {
+    return fmt.Sprintf("%s PTR [%s]", ShowAsmDataType(a.AsmDataType), a.Address.ShowAsmValue())
+}
+
+func (a AsmDeref) AsmValueDataType() AsmDataType {
+    return a.AsmDataType
+}
+
+func (v Immediate) ShowAsmValue() string {
+    return strconv.Itoa(v.Value)
+}
+
+func (v Immediate) AsmValueDataType() AsmDataType {
+    return v.AsmDataType
 }

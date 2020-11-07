@@ -578,8 +578,8 @@ func NewNodeAddr(a *Node) *Node {
 
 func NewNodeDeref(a *Node) *Node {
     node := NewNode(NodeDeref, a, nil)
-    if t, ok := DerefType((*a).Type); ok {
-        (*node).Type = t
+    if t, ok := DerefType(a.Type); ok {
+        node.Type = t
     }
     return node
 }
@@ -1111,7 +1111,9 @@ func Unary(state *ParserState) (*Node, error) {
         if a, err := Primary(state); err != nil {
             return nil, err
         } else {
-            return NewNode(NodeSub, NewNodeNum(0), a), nil
+            n := NewNode(NodeSub, NewNodeNum(0), a)
+            n.Type = Int()
+            return n, nil
         }
     } else if ConsumeOp(state, "&") {
         if a, err := Primary(state); err != nil {
@@ -1178,12 +1180,10 @@ func Expr(state *ParserState) (*Node, error) {
 
 func Add(state *ParserState) (*Node, error) {
     var node *Node
-    var t *CType
     if lhs, err := Mul(state); err != nil {
         return nil, err
     } else {
         node = lhs
-        t = (*lhs).Type
     }
 
     for {
@@ -1203,7 +1203,6 @@ func Add(state *ParserState) (*Node, error) {
             break
         }
     }
-    (*node).Type = t
     return node, nil
 }
 
@@ -1224,7 +1223,7 @@ func Assign(state *ParserState) (*Node, error) {
             node = NewNode(NodeAssign, node, ArrayToPointer(rhs))
         }
     }
-    (*node).Type = t
+    node.Type = t
     return node, nil
 }
 
