@@ -17,13 +17,17 @@ func Movs(dst AsmLocation, src AsmValue) {
     }
 }
 
-func GenProgram(globals []*Node, defs []NodeAndLocalSize) {
+func GenProgram(globals []*Node, stringLiterals []string, defs []NodeAndLocalSize) {
     fmt.Printf("  .intel_syntax noprefix\n")
 
-    if len(globals) > 0 {
+    if len(globals) > 0 || len(stringLiterals) > 0 {
         fmt.Printf("  .data\n")
         for _, node := range(globals) {
             GenGVar(node)
+        }
+
+        for i, lit := range(stringLiterals) {
+            GenStringLiteralData(i, lit)
         }
     }
 
@@ -57,6 +61,15 @@ func GenGVar(node *Node) {
     size := SizeOf(node.Type)
     fmt.Printf("%s:\n", node.Ident)
     fmt.Printf("  .zero %d\n", size)
+}
+
+func StringLiteralLabel(off int) string {
+    return fmt.Sprintf(".LC%d", off)
+}
+
+func GenStringLiteralData(i int, lit string) {
+    fmt.Printf("%s:\n", StringLiteralLabel(i))
+    fmt.Printf("  .string \"%s\"\n", lit)
 }
 
 func GenDef(node *Node, localSize int, state *GenState) {
@@ -137,6 +150,9 @@ func Gen(node *Node, state *GenState) {
     case NodeGVar:
         GenVarAddress(node, state)
         fmt.Printf("  mov rax, [rax]\n")
+        return
+    case NodeStringLiteral:
+        fmt.Printf("  lea rax, %s[rip]\n", StringLiteralLabel(node.Offset))
         return
     case NodeAssign:
         GenPushVarAddress(node.Lhs, state)
@@ -255,6 +271,9 @@ func GenExpr(node *Node, state *GenState) {
         GenVarAddress(node, state)
         fmt.Printf("  push [rax]\n")
         return
+    case NodeStringLiteral:
+        fmt.Printf("  lea rax, %s[rip]\n", StringLiteralLabel(node.Offset))
+        fmt.Printf("  push rax\n")
     case NodeAssign:
         GenPushVarAddress(node.Lhs, state)
         Gen(node.Rhs, state)

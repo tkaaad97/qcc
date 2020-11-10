@@ -27,6 +27,7 @@ const (
     TokenChar
     TokenInt
     TokenSizeOf
+    TokenStringLiteral
     TokenEof
 )
 
@@ -68,6 +69,7 @@ const (
     NodeAddr = 26
     NodeDeref = 27
     NodeGVar = 28
+    NodeStringLiteral = 29
 )
 
 type Node struct {
@@ -87,6 +89,7 @@ type ParserState struct {
     LocalOffset int
     Funcs map[string]*CType
     Globals map[string]*Node
+    StringLiterals []string
 }
 
 type NodeAndLocalSize struct {
@@ -338,6 +341,8 @@ func IsExpr(node *Node) bool {
     case NodeDeref:
         return true
     case NodeGVar:
+        return true
+    case NodeStringLiteral:
         return true
     }
 

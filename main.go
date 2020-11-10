@@ -22,12 +22,12 @@ func main() {
     }
 
     // プログラムパース
-    state := ParserState { tokens, 0, make(map[string]*Node), 0, make(map[string]*CType), make(map[string]*Node) }
+    state := ParserState { tokens, 0, make(map[string]*Node), 0, make(map[string]*CType), make(map[string]*Node), make([]string, 0, 10) }
     if globals, defs, err := Program(&state); err != nil {
         fmt.Fprintf(os.Stderr, err.Error())
         os.Exit(1)
     } else {
         // アセンブラ生成
-        GenProgram(globals, defs);
+        GenProgram(globals, state.StringLiterals, defs);
     }
 }

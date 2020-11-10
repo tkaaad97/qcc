@@ -98,6 +98,27 @@ func Tokenize(input []rune) ([]Token, error) {
             continue
         }
 
+        if (input[off] == '"') {
+            off++
+            start := off
+            lit := ""
+            for {
+                if input[off] == '"' {
+                    lit = string(input[start:off])
+                    off++
+                    break
+                }
+                off++
+            }
+            token := Token {
+                Kind: TokenStringLiteral,
+                Str: lit,
+                Pos: start,
+            }
+            tokens = append(tokens, token)
+            continue
+        }
+
         if (input[off] == ';') {
             token := Token {
                 Kind: TokenReserved,
@@ -397,6 +418,18 @@ func ConsumeIdent(state *ParserState) (string, bool) {
     return "", false
 }
 
+func ConsumeStringLiteral(state *ParserState) (string, bool) {
+    if (*state).Offset >= len((*state).Tokens) {
+        return "", false
+    }
+    token := (*state).Tokens[(*state).Offset]
+    if token.Kind == TokenStringLiteral {
+        (*state).Offset++
+        return token.Str, true
+    }
+    return "", false
+}
+
 func ConsumeSizeOf(state *ParserState) bool {
     if (*state).Offset >= len((*state).Tokens) {
         return false
@@ -500,6 +533,16 @@ func NewNodeGVar(state *ParserState, name string, t *CType) (*Node, error) {
     (*p).Type = t
     (*p).Ident = name
     (*globals)[name] = p
+    return p, nil
+}
+
+func NewNodeStringLiteral(state *ParserState, lit string) (*Node, error) {
+    literals := &(state.StringLiterals)
+    off := len(*literals)
+    p := NewNode(NodeStringLiteral, nil, nil)
+    p.Type = PointerTo(Char())
+    p.Offset = off
+    *literals = append(*literals, lit)
     return p, nil
 }
 
@@ -1087,6 +1130,10 @@ func Primary(state *ParserState) (*Node, error) {
             }
         }
         return RefNode(state, ident)
+    }
+
+    if lit, consumed := ConsumeStringLiteral(state); consumed {
+        return NewNodeStringLiteral(state, lit)
     }
 
     if ConsumeLeftParenthesis(state) {
