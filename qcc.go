@@ -4,6 +4,7 @@ import (
     "fmt"
     "os"
     "strconv"
+    "strings"
 )
 
 type TokenKind int
@@ -231,9 +232,21 @@ type AsmDeref struct {
     AsmDataType AsmDataType
 }
 
-func PrintErrorAt(input string, pos int, err string) {
-    fmt.Fprintf(os.Stderr, "%s\n", input)
-    format := fmt.Sprintf("%%%ds", pos)
+func PrintErrorAt(filename, input string, pos int, err string) {
+    prev := input[0:pos]
+    post := input[pos:]
+    lineStart := strings.LastIndex(prev, "\n") + 1
+    lineEnd := strings.Index(post, "\n")
+    if lineEnd < 0 {
+        lineEnd = len(input)
+    } else {
+        lineEnd += pos
+    }
+    lineNumber := strings.Count(prev, "\n")
+    lineNumberStr := strconv.Itoa(lineNumber)
+    errorLine := input[lineStart:lineEnd]
+    fmt.Fprintf(os.Stderr, "%s:%s: %s\n", filename, lineNumberStr, errorLine)
+    format := fmt.Sprintf("%%%ds", len(filename) + 1 + len(lineNumberStr) + 2 + pos - lineStart)
     fmt.Fprintf(os.Stderr, format, "")
     fmt.Fprintf(os.Stderr, "^ %s\n", err)
 }

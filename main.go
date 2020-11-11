@@ -23,8 +23,8 @@ func main() {
         input = bytes.Runes(bs)
     }
     var tokens []Token
-    if tokenized, err := Tokenize(input); err != nil {
-        fmt.Fprintf(os.Stderr, err.Error())
+    if tokenized, off, err := Tokenize(input); err != nil {
+        PrintErrorAt(inputFile, string(input), off, err.Error())
         os.Exit(1)
     } else {
         tokens = tokenized
@@ -33,7 +33,12 @@ func main() {
     // プログラムパース
     state := ParserState { tokens, 0, make(map[string]*Node), 0, make(map[string]*CType), make(map[string]*Node), make([]string, 0, 10) }
     if globals, defs, err := Program(&state); err != nil {
-        fmt.Fprintf(os.Stderr, err.Error())
+        if state.Offset < len(state.Tokens) {
+            token := state.Tokens[state.Offset]
+            PrintErrorAt(inputFile, string(input), token.Pos, err.Error())
+        } else {
+            fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+        }
         os.Exit(1)
     } else {
         // アセンブラ生成

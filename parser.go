@@ -41,7 +41,7 @@ func IsType(token Token) bool {
     return false
 }
 
-func Tokenize(input []rune) ([]Token, error) {
+func Tokenize(input []rune) ([]Token, int, error) {
     l := len(input)
     off := 0
     tokens := make([]Token, 0, 100)
@@ -169,7 +169,7 @@ func Tokenize(input []rune) ([]Token, error) {
 
         if (input[off] == '!') {
             if (off + 1 >= l || input[off + 1] != '=') {
-                return tokens, errors.New("トークナイズ失敗しました。")
+                return tokens, off, errors.New("トークナイズ失敗しました。")
             }
             token := Token {
                 Kind: TokenReserved,
@@ -290,7 +290,7 @@ func Tokenize(input []rune) ([]Token, error) {
 
         if unicode.IsDigit(input[off]) {
             if token, remaining, err := ParseNum(input, off); err != nil {
-                return tokens, errors.New("tokenizeに失敗しました。")
+                return tokens, off, errors.New("tokenizeに失敗しました。")
             } else {
                 tokens = append(tokens, token)
                 off = remaining
@@ -298,10 +298,10 @@ func Tokenize(input []rune) ([]Token, error) {
             continue
         }
 
-        return tokens, errors.New("tokenizeに失敗しました。")
+        return tokens, off, errors.New("tokenizeに失敗しました。")
     }
 
-    return tokens, nil
+    return tokens, off, nil
 }
 
 func ParseNum(input []rune, offset int) (Token, int, error) {
@@ -651,12 +651,14 @@ func Program(state *ParserState) ([]*Node, []NodeAndLocalSize, error) {
         if node, err := FuncDefOrDecl(state); err != nil {
             return nil, nil, err
         } else {
-            t := (*node).Type
-            if (*node).Kind == NodeGVar {
+            t := node.Type
+            if node.Kind == NodeGVar {
                 globals = append(globals, node)
-            } else if (*t).Kind != CTypeFunction {
+            } else if t != nil && t.Kind != CTypeFunction {
                 def := NodeAndLocalSize { node, (*state).LocalOffset }
                 defs = append(defs, def)
+            } else {
+                return nil, nil, errors.New("パース失敗")
             }
             (*state).Locals = make(map[string]*Node)
             (*state).LocalOffset = 0
