@@ -1,7 +1,9 @@
 package main
 
 import (
+    "bytes"
     "fmt"
+    "io/ioutil"
     "os"
 )
 
@@ -12,7 +14,14 @@ func main() {
     }
 
     // トークナイズする
-    input := []rune(os.Args[1])
+    inputFile := os.Args[1]
+    var input []rune
+    if bs, err := ioutil.ReadFile(inputFile); err != nil {
+        fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+        os.Exit(1)
+    } else {
+        input = bytes.Runes(bs)
+    }
     var tokens []Token
     if tokenized, err := Tokenize(input); err != nil {
         fmt.Fprintf(os.Stderr, err.Error())

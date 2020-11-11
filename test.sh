@@ -5,7 +5,7 @@ assertProgram() {
   expected="$1"
   input="$2"
 
-  ./qcc "${input}" > tmp/test.s
+  ./qcc <(echo "${input}") > tmp/test.s
   cc -o tmp/test tmp/test.s tmp/external.o
   set +e
   ./tmp/test
@@ -24,7 +24,7 @@ assertExpr() {
   expected="$1"
   input="$2"
 
-  ./qcc "int main(){${input}}" > tmp/test.s
+  ./qcc <(echo "int main(){${input}}") > tmp/test.s
   cc -o tmp/test tmp/test.s tmp/external.o
   set +e
   ./tmp/test
@@ -43,7 +43,7 @@ assertStdout() {
   expected="$1"
   input="$2"
 
-  ./qcc "$input" > tmp/test.s
+  ./qcc <(echo "$input") > tmp/test.s
   cc -o tmp/test tmp/test.s tmp/external.o
   actual="$(./tmp/test)"
 
