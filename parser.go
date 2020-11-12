@@ -1,11 +1,19 @@
 package main
 
 import (
+    "bytes"
     "fmt"
     "errors"
     "strconv"
     "unicode"
 )
+
+func min(a, b int) int {
+    if a < b {
+        return a
+    }
+    return b
+}
 
 func IsAlpha(a rune) bool {
     return (a >= 'a' && a <= 'z') || (a >= 'A' && a <= 'Z') || (a == '_')
@@ -53,6 +61,38 @@ func Tokenize(input []rune) ([]Token, int, error) {
 
         if (unicode.IsSpace(input[off])) {
             off++
+            continue
+        }
+
+        if bytes.Equal([]byte(string(input[off:min(off + 2, l)])), []byte("//")) {
+            off += 2
+            for {
+                if off >= l {
+                    break
+                }
+                if input[off] == '\n' {
+                    off++
+                    break
+                }
+
+                off++
+            }
+            continue
+        }
+
+        if bytes.Equal([]byte(string(input[off:min(off + 2, l)])), []byte("/*")) {
+            off += 2
+            for {
+                if off >= l {
+                    break
+                }
+                if bytes.Equal([]byte(string(input[off:min(off + 2, l)])), []byte("*/")) {
+                    off += 2
+                    break
+                }
+
+                off++
+            }
             continue
         }
 

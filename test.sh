@@ -5,17 +5,17 @@ assertProgram() {
   expected="$1"
   input="$2"
 
-  ./qcc <(echo "${input}") > tmp/test.s
+  ./qcc <(printf "${input}") > tmp/test.s
   cc -o tmp/test tmp/test.s tmp/external.o
   set +e
   ./tmp/test
   actual="$?"
 
   if [ "$actual" = "$expected" ]; then
-    echo "OK $input => $actual"
+    printf "OK %s => %s\n" "$input" "$actual"
   else
     printf "\x1b[31mNG\x1b[0m "
-    echo "$input => $expected expected, but got $actual"
+    printf "%s => %s expected, but got %s\n" "$input" "$expected" "$actual"
     return 1
   fi
 }
@@ -24,17 +24,17 @@ assertExpr() {
   expected="$1"
   input="$2"
 
-  ./qcc <(echo "int main(){${input}}") > tmp/test.s
+  ./qcc <(printf "int main(){%s}" "$input") > tmp/test.s
   cc -o tmp/test tmp/test.s tmp/external.o
   set +e
   ./tmp/test
   actual="$?"
 
   if [ "$actual" = "$expected" ]; then
-    echo "OK $input => $actual"
+    printf "OK %s => %s\n" "$input" "$actual"
   else
     printf "\x1b[31mNG\x1b[0m "
-    echo "$input => $expected expected, but got $actual"
+    printf "%s => %s expected, but got %s\n" "$input" "$expected" "$actual"
     return 1
   fi
 }
@@ -43,16 +43,16 @@ assertStdout() {
   expected="$1"
   input="$2"
 
-  ./qcc <(echo "$input") > tmp/test.s
+  ./qcc <(printf %s "$input") > tmp/test.s
   cc -o tmp/test tmp/test.s tmp/external.o
   actual="$(./tmp/test)"
 
   if [ "$actual" = "$expected" ]; then
-    echo "OK $input => $actual"
+    printf "OK %s => %s\n" "$input" "$actual"
   else
     printf "\x1b[31mNG\x1b[0m "
-    echo "$input => $expected expected, but got $actual"
-    exit 1
+    printf "%s => %s expected, but got %s\n" "$input" "$expected" "$actual"
+    return 1
   fi
 }
 
@@ -128,3 +128,5 @@ assertProgram 11 'int x; int y; int main() { x = 2; y = 9; return x + y; }'
 assertExpr 179 'char x[3]; x[0] = -1; x[1] = 2; int y; y = 180; return y + x[0];'
 assertProgram 9 'char x[3]; int main() { x[0] = -2; x[1] = 1; x[2] = 10; return x[0] + x[1] + x[2]; }'
 assertExpr 104 'char *a; a = "hello"; a[0];'
+assertProgram 0 "// ~~~line comment~~~\nint //\n main() { 0; }//aaaaaa"
+assertProgram 2 "int a;/* multi\n * line\n * comment\n */int /*\n//\n */\nmain() { 1 + 1; }"
