@@ -141,18 +141,40 @@ func Tokenize(input []rune) ([]Token, int, error) {
         if (input[off] == '"') {
             off++
             start := off
-            lit := ""
+            lit := make([]rune, 0, 100);
+            escapedChars := map[rune]rune{
+                '\'': '\'',
+                '"': '"',
+                '\\': '\\',
+                'a': '\a',
+                'b': '\b',
+                'f': '\f',
+                'n': '\n',
+                'r': '\r',
+                't': '\t',
+                'v': '\v',
+            }
             for {
-                if input[off] == '"' {
-                    lit = string(input[start:off])
+                if input[off] == '\\' {
+                    if off + 1 < l {
+                        if _, exists := escapedChars[input[off + 1]]; exists {
+                            lit = append(lit, escapedChars[input[off + 1]])
+                            off += 2
+                            continue
+                        }
+                    }
+                    return tokens, off, errors.New("トークナイズ失敗しました。")
+                } else if input[off] == '"' {
                     off++
                     break
+                } else {
+                    lit = append(lit, input[off])
+                    off++
                 }
-                off++
             }
             token := Token {
                 Kind: TokenStringLiteral,
-                Str: lit,
+                Str: string(lit),
                 Pos: start,
             }
             tokens = append(tokens, token)

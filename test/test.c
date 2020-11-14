@@ -31,7 +31,7 @@ int assert_int(int expected, int actual, char *expr) {
     if (actual == expected) {
         printf("OK %s => %d\n", expr, actual);
     } else {
-        printf("\x1b[31mNG\x1b[0m %s => %d expected, but got %d\n", expr, expected, actual);
+        printf("NG %s => %d expected, but got %d\n", expr, expected, actual);
         exit(1);
         return 1;
     }
@@ -72,7 +72,7 @@ GEN_CASE(t29, 11, x = 2; y = 9; return x + y;)
 GEN_CASE(t30, 179, char x[3]; x[0] = -1; x[1] = 2; int y; y = 180; return y + x[0];)
 char gx[3];
 GEN_CASE(t31, 9, gx[0] = -2; gx[1] = 1; gx[2] = 10; return gx[0] + gx[1] + gx[2];)
-//GEN_CASE(t32, 104, char *a; a = "hello"; a[0];)
+GEN_CASE(t32, 104, char *a; a = "hello"; a[0];)
 
 int main() {
     printf("start test\n");

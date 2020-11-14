@@ -69,7 +69,7 @@ func StringLiteralLabel(off int) string {
 
 func GenStringLiteralData(i int, lit string) {
     fmt.Printf("%s:\n", StringLiteralLabel(i))
-    fmt.Printf("  .string \"%s\"\n", lit)
+    fmt.Printf("  .string %q\n", lit)
 }
 
 func GenDef(node *Node, localSize int, state *GenState) {
