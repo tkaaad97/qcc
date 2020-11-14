@@ -246,6 +246,7 @@ func Gen(node *Node, state *GenState) {
             arg = arg.Rhs
             argNum++
         }
+        fmt.Printf("  mov al, 0\n")
         fmt.Printf("  call %s\n", funcName)
         return
     }
