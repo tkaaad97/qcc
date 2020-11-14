@@ -242,9 +242,13 @@ func Gen(node *Node, state *GenState) {
                 break
             }
             Gen(arg.Lhs, state)
-            fmt.Printf("  mov %s, rax\n", argRegisters[argNum])
+            fmt.Printf("push rax\n");
             arg = arg.Rhs
             argNum++
+        }
+        for i := argNum - 1; i >= 0; i-- {
+            fmt.Printf("pop rax\n");
+            fmt.Printf("mov %s, rax\n", argRegisters[i]);
         }
         fmt.Printf("  mov al, 0\n")
         fmt.Printf("  call %s\n", funcName)
