@@ -145,11 +145,15 @@ func Gen(node *Node, state *GenState) {
         return
     case NodeLVar:
         GenVarAddress(node, state)
-        fmt.Printf("  mov rax, [rax]\n")
+        dst := ResolveDstRegisterByType(int(Rax), node.Type)
+        src := AsmDeref{ Rax , CTypeToAsmDataType(node.Type) }
+        Movs(dst, src)
         return
     case NodeGVar:
         GenVarAddress(node, state)
-        fmt.Printf("  mov rax, [rax]\n")
+        dst := ResolveDstRegisterByType(int(Rax), node.Type)
+        src := AsmDeref{ Rax , CTypeToAsmDataType(node.Type) }
+        Movs(dst, src)
         return
     case NodeStringLiteral:
         fmt.Printf("  lea rax, %s[rip]\n", StringLiteralLabel(node.Offset))
@@ -167,7 +171,9 @@ func Gen(node *Node, state *GenState) {
         return
     case NodeDeref:
         Gen(node.Lhs, state)
-        fmt.Printf("  mov rax, [rax]\n")
+        dst := ResolveDstRegisterByType(int(Rax), node.Type)
+        src := AsmDeref{ Rax , CTypeToAsmDataType(node.Type) }
+        Movs(dst, src)
         return
     case NodeBlock:
         if node.Lhs == nil {
@@ -242,16 +248,22 @@ func Gen(node *Node, state *GenState) {
                 break
             }
             Gen(arg.Lhs, state)
-            fmt.Printf("push rax\n");
+            fmt.Printf("  push rax\n");
             arg = arg.Rhs
             argNum++
         }
         for i := argNum - 1; i >= 0; i-- {
-            fmt.Printf("pop rax\n");
-            fmt.Printf("mov %s, rax\n", argRegisters[i]);
+            fmt.Printf("  pop rax\n");
+            fmt.Printf("  mov %s, rax\n", argRegisters[i]);
         }
         fmt.Printf("  mov al, 0\n")
         fmt.Printf("  call %s\n", funcName)
+        return
+    case NodeCastIntegral:
+        Gen(node.Lhs, state)
+        dst := ResolveRegisterByType(int(Rax), node.Type)
+        src := ResolveRegisterByType(int(Rax), node.Lhs.Type).AsmLocationToValue()
+        Movs(dst, src)
         return
     }
 
@@ -269,12 +281,12 @@ func GenExpr(node *Node, state *GenState) {
         fmt.Printf("  push %d\n", node.Val)
         return
     case NodeLVar:
-        GenVarAddress(node, state)
-        fmt.Printf("  push [rax]\n")
+        Gen(node, state)
+        fmt.Printf("  push rax\n")
         return
     case NodeGVar:
-        GenVarAddress(node, state)
-        fmt.Printf("  push [rax]\n")
+        Gen(node, state)
+        fmt.Printf("  push rax\n")
         return
     case NodeStringLiteral:
         fmt.Printf("  lea rax, %s[rip]\n", StringLiteralLabel(node.Offset))
@@ -298,6 +310,10 @@ func GenExpr(node *Node, state *GenState) {
         fmt.Printf("  push [rax]\n")
         return
     case NodeFuncCall:
+        Gen(node, state)
+        fmt.Printf("  push rax\n")
+        return
+    case NodeCastIntegral:
         Gen(node, state)
         fmt.Printf("  push rax\n")
         return

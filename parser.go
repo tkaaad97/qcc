@@ -653,22 +653,22 @@ func NewNodeFuncCall(state* ParserState, name string, args []*Node) *Node {
     funcs := (*state).Funcs
     if t, exists := funcs[name]; exists {
         // TODO extern宣言で外部の関数の型を拾えるようにする
-        (*node).Type = t
+        node.Type = t
     }
     return node
 }
 
 func NewNodeFuncDef(state* ParserState, funcName string, params []*Node, block *Node, returnType *CType) (*Node, error) {
-    funcs := &((*state).Funcs)
+    funcs := &(state.Funcs)
     if _, exists := (*funcs)[funcName]; exists {
         return nil, fmt.Errorf("関数名が重複しています name: %s", funcName)
     }
     node := NewNode(NodeFuncDef, nil, block)
-    (*node).Ident = funcName
-    (*node).Type = returnType
+    node.Ident = funcName
+    node.Type = returnType
     current := node
     for _, param := range(params) {
-        (*current).Lhs = param
+        current.Lhs = param
         current = param
     }
     (*funcs)[funcName] = returnType
@@ -702,11 +702,20 @@ func ArrayToPointer(node *Node) *Node {
     return node
 }
 
+func CastIntegral(node *Node, t *CType) *Node {
+    if node != nil && IsIntegralType(node.Type) && IsIntegralType(t) && node.Type.Kind != CTypeInt {
+        n := NewNode(NodeCastIntegral, node, nil)
+        n.Type = t
+        return n
+    }
+    return node
+}
+
 func Program(state *ParserState) ([]*Node, []NodeAndLocalSize, error) {
     globals := []*Node{}
     defs := []NodeAndLocalSize{}
     for {
-        if (*state).Offset >= len((*state).Tokens) {
+        if state.Offset >= len(state.Tokens) {
             break
         }
 
@@ -717,13 +726,14 @@ func Program(state *ParserState) ([]*Node, []NodeAndLocalSize, error) {
             if node.Kind == NodeGVar {
                 globals = append(globals, node)
             } else if t != nil && t.Kind != CTypeFunction {
-                def := NodeAndLocalSize { node, (*state).LocalOffset }
+                def := NodeAndLocalSize { node, state.LocalOffset }
                 defs = append(defs, def)
             } else {
                 return nil, nil, errors.New("パース失敗")
             }
-            (*state).Locals = make(map[string]*Node)
-            (*state).LocalOffset = 0
+            state.Locals = make(map[string]*Node)
+            state.LocalOffset = 0
+            state.ReturnType = nil
         }
     }
 
@@ -746,7 +756,7 @@ func FuncDefOrDecl(state *ParserState) (*Node, error) {
         }
     }
 
-    if (*state).Offset >= len((*state).Tokens) {
+    if state.Offset >= len(state.Tokens) {
         return nil, errors.New("パース失敗")
     }
 
@@ -756,8 +766,8 @@ func FuncDefOrDecl(state *ParserState) (*Node, error) {
         if SatisfyTokenKind(state, TokenLeftBrace) {
             t := cont(baseType)
             paramNodes := []*Node{}
-            if (*t).Kind == CTypeFunction {
-                params := (*t).Parameters
+            if t.Kind == CTypeFunction {
+                params := t.Parameters
                 for _, param := range(params) {
                     if paramNode, err := NewNodeDecl(state, param.Name, param.Type); err != nil {
                         return nil, err
@@ -767,10 +777,11 @@ func FuncDefOrDecl(state *ParserState) (*Node, error) {
                 }
             }
 
+            state.ReturnType = t.ReturnType
             if block, err := Block(state); err != nil {
                 return nil, err
             } else {
-                return NewNodeFuncDef(state, ident, paramNodes, block, (*t).ReturnType)
+                return NewNodeFuncDef(state, ident, paramNodes, block, t.ReturnType)
             }
         } else if ConsumeOp(state, ";") {
             return NewNodeGVar(state, ident, cont(baseType));
@@ -1141,7 +1152,7 @@ func Return(state *ParserState) (*Node, error) {
         if !ConsumeOp(state, ";") {
             return nil, errors.New("Returnパース失敗")
         }
-        return NewNode(NodeReturn, e, nil), nil
+        return NewNode(NodeReturn, CastIntegral(e, state.ReturnType), nil), nil
     }
 }
 
@@ -1175,16 +1186,26 @@ func Primary(state *ParserState) (*Node, error) {
     }
 
     if ident, consumed := ConsumeIdent(state); consumed {
+        funcType := state.Funcs[ident]
+        params := []Parameter{}
+        if funcType != nil {
+            params = funcType.Parameters
+        }
         if ConsumeLeftParenthesis(state) {
             args := []*Node{}
             if ConsumeRightParenthesis(state) {
                 return NewNodeFuncCall(state, ident, args), nil
             }
+            i := 0
             for {
                 if expr, err := Expr(state); err != nil {
                     return nil, err
                 } else {
+                    if i < len(params) {
+                        expr = CastIntegral(expr, params[i].Type)
+                    }
                     args = append(args, expr)
+                    i++
                     if ConsumeRightParenthesis(state) {
                         return NewNodeFuncCall(state, ident, args), nil
                     } else if !ConsumeComma(state) {
@@ -1217,14 +1238,18 @@ func Primary(state *ParserState) (*Node, error) {
 
 func Unary(state *ParserState) (*Node, error) {
     if ConsumeOp(state, "+") {
-        return Primary(state)
+        if a, err := Primary(state); err != nil {
+            return nil, err
+        } else {
+            return CastIntegral(a, Int()), nil
+        }
     } else if ConsumeOp(state, "-") {
         if a, err := Primary(state); err != nil {
             return nil, err
         } else {
             n := NewNode(NodeSub, NewNodeNum(0), a)
             n.Type = Int()
-            return n, nil
+            return CastIntegral(n, Int()), nil
         }
     } else if ConsumeOp(state, "&") {
         if a, err := Primary(state); err != nil {
@@ -1269,13 +1294,13 @@ func Mul(state *ParserState) (*Node, error) {
             if rhs, err := Unary(state); err != nil {
                 return nil, err
             } else {
-                node = NewNode(NodeMul, node, rhs)
+                node = NewNode(NodeMul, node, CastIntegral(rhs, Int()))
             }
         } else if ConsumeOp(state, "/") {
             if rhs, err := Unary(state); err != nil {
                 return nil, err
             } else {
-                node = NewNode(NodeDiv, node, rhs)
+                node = NewNode(NodeDiv, node, CastIntegral(rhs, Int()))
             }
         } else {
             break
@@ -1302,13 +1327,13 @@ func Add(state *ParserState) (*Node, error) {
             if rhs, err := Mul(state); err != nil {
                 return nil, err
             } else {
-                node = NewNodeAdd(ArrayToPointer(node), ArrayToPointer(rhs))
+                node = NewNodeAdd(CastIntegral(ArrayToPointer(node), Int()), CastIntegral(ArrayToPointer(rhs), Int()))
             }
         } else if ConsumeOp(state, "-") {
             if rhs, err := Mul(state); err != nil {
                 return nil, err
             } else {
-                node = NewNodeSub(ArrayToPointer(node), ArrayToPointer(rhs))
+                node = NewNodeSub(CastIntegral(ArrayToPointer(node), Int()), CastIntegral(ArrayToPointer(rhs), Int()))
             }
         } else {
             break
@@ -1331,7 +1356,7 @@ func Assign(state *ParserState) (*Node, error) {
         if rhs, err := Assign(state); err != nil {
             return nil, err
         } else {
-            node = NewNode(NodeAssign, node, ArrayToPointer(rhs))
+            node = NewNode(NodeAssign, node, CastIntegral(ArrayToPointer(rhs), node.Type))
         }
     }
     node.Type = t

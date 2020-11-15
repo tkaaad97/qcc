@@ -31,7 +31,7 @@ func main() {
     }
 
     // プログラムパース
-    state := ParserState { tokens, 0, make(map[string]*Node), 0, make(map[string]*CType), make(map[string]*Node), make([]string, 0, 10) }
+    state := ParserState { tokens, 0, make(map[string]*Node), 0, make(map[string]*CType), make(map[string]*Node), make([]string, 0, 10), nil }
     if globals, defs, err := Program(&state); err != nil {
         if state.Offset < len(state.Tokens) {
             token := state.Tokens[state.Offset]

@@ -71,6 +71,7 @@ const (
     NodeDeref = 27
     NodeGVar = 28
     NodeStringLiteral = 29
+    NodeCastIntegral = 30
 )
 
 type Node struct {
@@ -91,6 +92,7 @@ type ParserState struct {
     Funcs map[string]*CType
     Globals map[string]*Node
     StringLiterals []string
+    ReturnType *CType
 }
 
 type NodeAndLocalSize struct {
@@ -357,8 +359,22 @@ func IsExpr(node *Node) bool {
         return true
     case NodeStringLiteral:
         return true
+    case NodeCastIntegral:
+        return true
     }
 
+    return false
+}
+
+func IsIntegralType(t *CType) bool {
+    if t != nil {
+        switch (t.Kind) {
+        case CTypeInt:
+            return true
+        case CTypeChar:
+            return true
+        }
+    }
     return false
 }
 
@@ -539,6 +555,19 @@ func ResolveRegisterByType(i int, t *CType) AsmLocation {
         return Register8(i)
     case 2:
         return Register16(i)
+    case 4:
+        return Register32(i)
+    }
+    return Register64(i)
+}
+
+func ResolveDstRegisterByType(i int, t *CType) AsmLocation {
+    size := SizeOf(t)
+    switch (size) {
+    case 1:
+        return Register32(i)
+    case 2:
+        return Register32(i)
     case 4:
         return Register32(i)
     }

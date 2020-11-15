@@ -127,8 +127,8 @@ int main() {
     EXEC_CASE(t27);
     EXEC_CASE(t28);
     EXEC_CASE(t29);
-//    EXEC_CASE(t30);
-//    EXEC_CASE(t31);
-//    EXEC_CASE(t32);
+    EXEC_CASE(t30);
+    EXEC_CASE(t31);
+    EXEC_CASE(t32);
     return 0;
 }
